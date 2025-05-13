@@ -17,6 +17,10 @@ const geistMono = localFont({
 export const metadata: Metadata = {
   title: "$LARRY - The Werewolf Meme Coin",
   description: "Join the pack with $LARRY - The most howl-arious meme coin on the blockchain!",
+  icons: {
+    icon: '/fonts/logo32x32.png',
+    apple: '/fonts/logo32x32.png',
+  },
 };
 
 export default function RootLayout({
