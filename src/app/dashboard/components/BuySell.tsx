@@ -14,7 +14,7 @@ export default function BuySell() {
     input: '0',
     output: '0',
     fee: '0',
-    feeAmount: '0',
+    tokenPrice: '0',
   });
   
   // User balances
@@ -24,11 +24,7 @@ export default function BuySell() {
   });
 
   useEffect(() => {
-    if (amount) {
-      calculatePreview();
-    } else {
-      setPreview({ input: '0', output: '0', fee: '0', feeAmount: '0' });
-    }
+    calculatePreview();
   }, [amount, activeTab]);
   
   useEffect(() => {
@@ -61,6 +57,21 @@ export default function BuySell() {
   const calculatePreview = async () => {
     try {
       const contract = await getContract();
+      
+      // Always get the current token price
+      const currentPrice = await contract.lastPrice();
+      const formattedPrice = formatEther(currentPrice);
+      
+      if (!amount || amount === '') {
+        setPreview({ 
+          input: '0', 
+          output: '0', 
+          fee: '0', 
+          tokenPrice: formattedPrice 
+        });
+        return;
+      }
+      
       const inputAmount = parseEther(amount);
       
       if (activeTab === 'buy') {
@@ -86,7 +97,7 @@ export default function BuySell() {
             input: amount,
             output: formatEther(buyAmount),
             fee: feePercent.toFixed(2),
-            feeAmount: formatEther(teamFee),
+            tokenPrice: formattedPrice,
           });
         } catch (error) {
           // Fallback to manual calculation if getBuyLARRY fails
@@ -120,7 +131,7 @@ export default function BuySell() {
             input: amount,
             output: formatEther(larryAfterFee),
             fee: feePercent.toFixed(2),
-            feeAmount: formatEther(teamFee),
+            tokenPrice: formattedPrice,
           });
         }
       } else {
@@ -155,7 +166,7 @@ export default function BuySell() {
           input: amount,
           output: formatEther(ethAfterFee),
           fee: feePercent.toFixed(2),
-          feeAmount: formatEther(teamFee),
+          tokenPrice: formattedPrice,
         });
       }
     } catch (error) {
@@ -216,7 +227,7 @@ export default function BuySell() {
       
       // Reset form
       setAmount('');
-      setPreview({ input: '0', output: '0', fee: '0', feeAmount: '0' });
+      calculatePreview(); // This will reset with current token price
       
       // Reload balances
       await loadUserBalances();
@@ -300,37 +311,31 @@ export default function BuySell() {
           </div>
 
           {/* Preview */}
-          {amount && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="mb-6 p-4 bg-purple-800/10 rounded-lg space-y-2"
-            >
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-400">You pay</span>
-                <span className="text-white">
-                  {preview.input} {activeTab === 'buy' ? 'ETH' : 'LARRY'}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-400">You receive</span>
-                <span className="text-green-400">
-                  {parseFloat(preview.output).toFixed(6)} {activeTab === 'buy' ? 'LARRY' : 'ETH'}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-400">Protocol fee</span>
-                <span className="text-yellow-400">{preview.fee}%</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-400">Team fee</span>
-                <span className="text-yellow-400">{parseFloat(preview.feeAmount).toFixed(6)} ETH</span>
-              </div>
-              <div className="text-xs text-gray-500 italic mt-2">
-                *Final amount may vary slightly due to price movements
-              </div>
-            </motion.div>
-          )}
+          <div className="mb-6 p-4 bg-purple-800/10 rounded-lg space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-400">You pay</span>
+              <span className="text-white">
+                {preview.input} {activeTab === 'buy' ? 'ETH' : 'LARRY'}
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-400">You receive</span>
+              <span className="text-green-400">
+                {parseFloat(preview.output).toFixed(6)} {activeTab === 'buy' ? 'LARRY' : 'ETH'}
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-400">Protocol fee</span>
+              <span className="text-yellow-400">{preview.fee}%</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-400">Token price</span>
+              <span className="text-purple-400">{parseFloat(preview.tokenPrice).toFixed(6)} ETH</span>
+            </div>
+            <div className="text-xs text-gray-500 italic mt-2">
+              *Final amount may vary slightly due to price movements
+            </div>
+          </div>
 
           {/* Action Button */}
           <motion.button
