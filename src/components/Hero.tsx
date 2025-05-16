@@ -4,7 +4,6 @@ import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import Larry3DBanner from './Larry3DBanner';
 
 export default function Hero() {
   const [windowSize, setWindowSize] = useState({ width: 1000, height: 800 });
@@ -51,7 +50,7 @@ export default function Hero() {
   };
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-b from-purple-900/10 via-black to-black">
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-b from-purple-900/10 via-black to-black pt-20">
       {/* Animated Background */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute inset-0 bg-[url('/images/stars.png')] bg-cover opacity-10" />
@@ -96,16 +95,6 @@ export default function Hero() {
 
       <div className="container mx-auto px-4 relative z-10">
         <div className="text-center max-w-6xl mx-auto">
-          {/* Larry 3D Banner */}
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, ease: "easeOut" }}
-            className="mb-12"
-          >
-            <Larry3DBanner />
-          </motion.div>
-
           {/* Main Title */}
           <motion.h1
             initial="hidden"
