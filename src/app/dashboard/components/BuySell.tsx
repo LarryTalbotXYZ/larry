@@ -14,13 +14,14 @@ export default function BuySell() {
     input: '0',
     output: '0',
     fee: '0',
+    feeAmount: '0',
   });
 
   useEffect(() => {
     if (amount) {
       calculatePreview();
     } else {
-      setPreview({ input: '0', output: '0', fee: '0' });
+      setPreview({ input: '0', output: '0', fee: '0', feeAmount: '0' });
     }
   }, [amount, activeTab]);
 
@@ -30,43 +31,98 @@ export default function BuySell() {
       const inputAmount = parseEther(amount);
       
       if (activeTab === 'buy') {
-        // Get the buy fee
-        const buyFee = await contract.buy_fee();
-        const feePercent = ((10000 - Number(buyFee)) / 100);
-        
-        // Use the contract's ETHtoLARRY function which should match the actual buy result
-        let larryAmount;
+        // Try using getBuyLARRY first as it's the contract's official calculation
         try {
-          // This should be the most accurate as it's what the contract uses internally
-          larryAmount = await contract.ETHtoLARRY(inputAmount);
-        } catch (e) {
-          // Fallback to getBuyLARRY if ETHtoLARRY fails
-          try {
-            larryAmount = await contract.getBuyLARRY(inputAmount);
-          } catch (e2) {
-            // Final fallback
-            larryAmount = inputAmount;
-          }
+          const [buyAmount, buyFee] = await Promise.all([
+            contract.getBuyLARRY(inputAmount),
+            contract.buy_fee()
+          ]);
+          
+          // Calculate team fee (1/2000 of ETH)
+          const teamFee = inputAmount / 2000n;
+          const feePercent = ((10000 - Number(buyFee)) / 100);
+          
+          console.log(`Buy calculation (getBuyLARRY):
+            Input ETH: ${formatEther(inputAmount)}
+            LARRY amount: ${formatEther(buyAmount)}
+            Buy fee: ${buyFee}/10000 (${feePercent}%)
+            Team fee: ${formatEther(teamFee)} ETH
+          `);
+          
+          setPreview({
+            input: amount,
+            output: formatEther(buyAmount),
+            fee: feePercent.toFixed(2),
+            feeAmount: formatEther(teamFee),
+          });
+        } catch (error) {
+          // Fallback to manual calculation if getBuyLARRY fails
+          const [totalSupply, backing, buyFee] = await Promise.all([
+            contract.totalSupply(),
+            contract.getBacking(),
+            contract.buy_fee()
+          ]);
+          
+          // Calculate using ETHtoLARRY formula
+          const backingAfterBuy = backing - inputAmount;
+          const rawLarryAmount = (inputAmount * totalSupply) / backingAfterBuy;
+          
+          // Apply buy fee correctly (matching the contract's buy function)
+          const larryAfterFee = (rawLarryAmount * BigInt(buyFee)) / 10000n;
+          
+          const teamFee = inputAmount / 2000n;
+          const feePercent = ((10000 - Number(buyFee)) / 100);
+          
+          console.log(`Buy calculation (manual):
+            Input ETH: ${formatEther(inputAmount)}
+            Total Supply: ${formatEther(totalSupply)}
+            Backing: ${formatEther(backing)}
+            Raw LARRY: ${formatEther(rawLarryAmount)}
+            Buy fee: ${buyFee}/10000
+            LARRY after fee: ${formatEther(larryAfterFee)}
+            Team fee: ${formatEther(teamFee)} ETH
+          `);
+          
+          setPreview({
+            input: amount,
+            output: formatEther(larryAfterFee),
+            fee: feePercent.toFixed(2),
+            feeAmount: formatEther(teamFee),
+          });
         }
-        
-        // Log for debugging
-        console.log(`Buy preview - Input: ${amount} ETH, Output: ${formatEther(larryAmount.toString())} LARRY, Fee: ${feePercent}%`);
-        
-        setPreview({
-          input: amount,
-          output: formatEther(larryAmount.toString()),
-          fee: feePercent.toFixed(2),
-        });
       } else {
         // Calculate sell preview
-        const ethAmount = await contract.LARRYtoETH(inputAmount);
-        const sellFee = await contract.sell_fee();
+        const [totalSupply, backing, sellFee] = await Promise.all([
+          contract.totalSupply(),
+          contract.getBacking(),
+          contract.sell_fee()
+        ]);
+        
+        // LARRYtoETH: value * getBacking() / totalSupply()
+        const rawEthAmount = (inputAmount * backing) / totalSupply;
+        
+        // Apply sell fee
+        const ethAfterFee = (rawEthAmount * BigInt(sellFee)) / 10000n;
+        
+        // Calculate team fee (1/2000 of ETH)
+        const teamFee = rawEthAmount / 2000n;
         const feePercent = ((10000 - Number(sellFee)) / 100);
+        
+        console.log(`Sell calculation:
+          Input LARRY: ${formatEther(inputAmount)}
+          Total Supply: ${formatEther(totalSupply)}
+          Backing: ${formatEther(backing)}
+          Raw ETH: ${formatEther(rawEthAmount)}
+          Sell fee: ${sellFee}/10000
+          ETH after fee: ${formatEther(ethAfterFee)}
+          Team fee: ${formatEther(teamFee)} ETH
+        `);
         
         setPreview({
           input: amount,
-          output: formatEther(ethAmount.toString()),
+          output: formatEther(ethAfterFee),
           fee: feePercent.toFixed(2),
+          feeAmount: formatEther(teamFee),
         });
       }
     } catch (error) {
@@ -101,17 +157,25 @@ export default function BuySell() {
       // Wait for transaction
       const receipt = await tx.wait();
       
-      // Get the actual amount received from events (if available)
+      // Get the actual amount received from events
       if (receipt.logs) {
         // Try to parse Transfer events to show actual amount received
         for (const log of receipt.logs) {
           try {
             const parsedLog = contract.interface.parseLog(log);
-            if (parsedLog && parsedLog.name === 'Transfer' && parsedLog.args.to === address) {
-              const actualAmount = formatEther(parsedLog.args.value);
-              console.log(`Actual amount received: ${actualAmount} LARRY`);
-              console.log(`Predicted amount: ${preview.output} LARRY`);
-              console.log(`Difference: ${parseFloat(actualAmount) - parseFloat(preview.output)} LARRY`);
+            if (parsedLog && parsedLog.name === 'Transfer') {
+              if (activeTab === 'buy' && parsedLog.args.to === address) {
+                const actualAmount = formatEther(parsedLog.args.value);
+                console.log(`Buy transaction completed:
+                  Predicted: ${preview.output} LARRY
+                  Actual: ${actualAmount} LARRY
+                  Difference: ${parseFloat(actualAmount) - parseFloat(preview.output)} LARRY
+                `);
+              }
+            }
+            // Also check for Price event
+            if (parsedLog && parsedLog.name === 'Price') {
+              console.log(`New price: ${formatEther(parsedLog.args.price)} ETH per LARRY`);
             }
           } catch (e) {}
         }
@@ -119,7 +183,7 @@ export default function BuySell() {
       
       // Reset form
       setAmount('');
-      setPreview({ input: '0', output: '0', fee: '0' });
+      setPreview({ input: '0', output: '0', fee: '0', feeAmount: '0' });
       
       // Show success
       alert(`Transaction successful! Hash: ${tx.hash}`);
@@ -197,17 +261,21 @@ export default function BuySell() {
                 </span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-400">You receive (estimated)</span>
+                <span className="text-gray-400">You receive</span>
                 <span className="text-green-400">
-                  ~{parseFloat(preview.output).toFixed(6)} {activeTab === 'buy' ? 'LARRY' : 'ETH'}
+                  {parseFloat(preview.output).toFixed(6)} {activeTab === 'buy' ? 'LARRY' : 'ETH'}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-400">Fee</span>
+                <span className="text-gray-400">Protocol fee</span>
                 <span className="text-yellow-400">{preview.fee}%</span>
               </div>
-              <div className="text-xs text-gray-500 italic">
-                *Actual amount may vary slightly due to contract calculations
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-400">Team fee</span>
+                <span className="text-yellow-400">{parseFloat(preview.feeAmount).toFixed(6)} ETH</span>
+              </div>
+              <div className="text-xs text-gray-500 italic mt-2">
+                *Final amount may vary slightly due to price movements
               </div>
             </motion.div>
           )}
