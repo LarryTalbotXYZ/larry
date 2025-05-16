@@ -10,6 +10,7 @@ export default function LoanManager() {
   const [activeTab, setActiveTab] = useState<'borrow' | 'manage'>('borrow');
   const [loading, setLoading] = useState(false);
   
+  
   // Borrow form state
   const [borrowAmount, setBorrowAmount] = useState('');
   const [borrowDays, setBorrowDays] = useState('7');
@@ -607,25 +608,89 @@ export default function LoanManager() {
                 </div>
               </div>
 
-              {/* Days - only for normal and leverage */}
+              {/* Loan duration slider - only for normal and leverage */}
               {(borrowType === 'normal' || borrowType === 'leverage') && (
-                <div>
-                  <label className="block text-gray-400 mb-2">
-                    Loan Duration (Days)
+                <div className="space-y-4">
+                  <label className="block text-gray-400">
+                    Loan Duration: <span className="text-white font-medium">{borrowDays} days</span>
                   </label>
-                  <select
-                    value={borrowDays}
-                    onChange={(e) => setBorrowDays(e.target.value)}
-                    className="w-full px-4 py-3 bg-purple-800/20 border border-purple-500/30 rounded-lg text-white focus:outline-none focus:border-purple-400 transition-colors"
-                  >
-                    <option value="1">1 Day</option>
-                    <option value="3">3 Days</option>
-                    <option value="7">7 Days</option>
-                    <option value="14">14 Days</option>
-                    <option value="30">30 Days</option>
-                    <option value="60">60 Days</option>
-                    <option value="90">90 Days</option>
-                  </select>
+                  
+                  {/* Quick preset buttons */}
+                  <div className="flex gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => setBorrowDays('1')}
+                      className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                        borrowDays === '1' ? 'bg-purple-600 text-white' : 'bg-purple-800/20 text-purple-400 hover:bg-purple-800/30'
+                      }`}
+                    >
+                      1 day
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBorrowDays('7')}
+                      className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                        borrowDays === '7' ? 'bg-purple-600 text-white' : 'bg-purple-800/20 text-purple-400 hover:bg-purple-800/30'
+                      }`}
+                    >
+                      1 week
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBorrowDays('30')}
+                      className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                        borrowDays === '30' ? 'bg-purple-600 text-white' : 'bg-purple-800/20 text-purple-400 hover:bg-purple-800/30'
+                      }`}
+                    >
+                      1 month
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBorrowDays('90')}
+                      className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                        borrowDays === '90' ? 'bg-purple-600 text-white' : 'bg-purple-800/20 text-purple-400 hover:bg-purple-800/30'
+                      }`}
+                    >
+                      3 months
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBorrowDays('180')}
+                      className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                        borrowDays === '180' ? 'bg-purple-600 text-white' : 'bg-purple-800/20 text-purple-400 hover:bg-purple-800/30'
+                      }`}
+                    >
+                      6 months
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBorrowDays('365')}
+                      className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                        borrowDays === '365' ? 'bg-purple-600 text-white' : 'bg-purple-800/20 text-purple-400 hover:bg-purple-800/30'
+                      }`}
+                    >
+                      1 year
+                    </button>
+                  </div>
+                  
+                  {/* Slider */}
+                  <div className="relative pt-2 pb-6">
+                    <input
+                      type="range"
+                      min="1"
+                      max="365"
+                      value={borrowDays}
+                      onChange={(e) => setBorrowDays(e.target.value)}
+                      className="w-full h-2 bg-purple-800/30 rounded-lg appearance-none cursor-pointer slider"
+                      style={{
+                        background: `linear-gradient(to right, #a855f7 0%, #a855f7 ${(Number(borrowDays) / 365) * 100}%, #4c1d95 ${(Number(borrowDays) / 365) * 100}%, #4c1d95 100%)`
+                      }}
+                    />
+                    <div className="absolute flex justify-between w-full px-2 top-8 text-xs text-gray-500">
+                      <span>1</span>
+                      <span>365 days</span>
+                    </div>
+                  </div>
                 </div>
               )}
 
