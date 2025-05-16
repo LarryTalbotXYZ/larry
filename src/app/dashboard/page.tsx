@@ -54,14 +54,8 @@ export default function Dashboard() {
           transition={{ duration: 0.3 }}
         >
           {activeTab === 'trading' && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="space-y-6">
-                <TokenStats />
-                <BuySell />
-              </div>
-              <div>
-                <PriceChart />
-              </div>
+            <div className="max-w-2xl mx-auto">
+              <BuySell />
             </div>
           )}
 

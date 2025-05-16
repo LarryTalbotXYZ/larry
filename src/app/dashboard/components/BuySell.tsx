@@ -16,6 +16,12 @@ export default function BuySell() {
     fee: '0',
     feeAmount: '0',
   });
+  
+  // User balances
+  const [userBalances, setUserBalances] = useState({
+    ethBalance: '0',
+    larryBalance: '0',
+  });
 
   useEffect(() => {
     if (amount) {
@@ -24,6 +30,33 @@ export default function BuySell() {
       setPreview({ input: '0', output: '0', fee: '0', feeAmount: '0' });
     }
   }, [amount, activeTab]);
+  
+  useEffect(() => {
+    if (connected && address) {
+      loadUserBalances();
+    }
+  }, [connected, address]);
+  
+  const loadUserBalances = async () => {
+    try {
+      const contract = await getContract();
+      const provider = await signer?.provider;
+      
+      if (provider && address) {
+        const [larryBalance, ethBalance] = await Promise.all([
+          contract.balanceOf(address),
+          provider.getBalance(address),
+        ]);
+        
+        setUserBalances({
+          ethBalance: formatEther(ethBalance),
+          larryBalance: formatEther(larryBalance),
+        });
+      }
+    } catch (error) {
+      console.error('Error loading balances:', error);
+    }
+  };
 
   const calculatePreview = async () => {
     try {
@@ -185,6 +218,9 @@ export default function BuySell() {
       setAmount('');
       setPreview({ input: '0', output: '0', fee: '0', feeAmount: '0' });
       
+      // Reload balances
+      await loadUserBalances();
+      
       // Show success
       alert(`Transaction successful! Hash: ${tx.hash}`);
     } catch (error: any) {
@@ -235,16 +271,32 @@ export default function BuySell() {
           <div className="mb-4">
             <label className="block text-gray-400 mb-2">
               Amount ({activeTab === 'buy' ? 'ETH' : 'LARRY'})
+              <span className="text-sm ml-2">
+                Balance: {parseFloat(activeTab === 'buy' ? userBalances.ethBalance : userBalances.larryBalance).toFixed(6)}
+              </span>
             </label>
-            <input
-              type="number"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.0"
-              step="0.000001"
-              min="0"
-              className="w-full px-4 py-3 bg-purple-800/20 border border-purple-500/30 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-400 transition-colors"
-            />
+            <div className="relative">
+              <input
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0.0"
+                step="0.000001"
+                min="0"
+                className="w-full px-4 py-3 bg-purple-800/20 border border-purple-500/30 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-400 transition-colors pr-16"
+              />
+              <button
+                onClick={() => {
+                  const maxAmount = activeTab === 'buy' 
+                    ? userBalances.ethBalance 
+                    : userBalances.larryBalance;
+                  setAmount(maxAmount);
+                }}
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 px-3 py-1 bg-purple-600 hover:bg-purple-700 text-xs text-white rounded font-medium transition-colors"
+              >
+                MAX
+              </button>
+            </div>
           </div>
 
           {/* Preview */}
@@ -318,9 +370,21 @@ export default function BuySell() {
             )}
           </motion.button>
 
-          {/* Wallet Info */}
-          <div className="mt-4 text-center text-sm text-gray-400">
-            Connected: {address.slice(0, 6)}...{address.slice(-4)}
+          {/* Wallet Info & Balances */}
+          <div className="mt-6 p-4 bg-purple-800/10 rounded-lg">
+            <div className="text-center text-sm text-gray-400 mb-2">
+              Connected: {address.slice(0, 6)}...{address.slice(-4)}
+            </div>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="text-center">
+                <div className="text-gray-400">ETH Balance</div>
+                <div className="text-white font-medium">{parseFloat(userBalances.ethBalance).toFixed(6)}</div>
+              </div>
+              <div className="text-center">
+                <div className="text-gray-400">LARRY Balance</div>
+                <div className="text-white font-medium">{parseFloat(userBalances.larryBalance).toFixed(6)}</div>
+              </div>
+            </div>
           </div>
         </>
       ) : (
