@@ -2,69 +2,89 @@
 
 import { motion } from 'framer-motion';
 
-const TokenomicsData = [
-  {
-    percentage: 64,
-    label: 'Moon Pack Distribution 🌕',
-    description: 'Fair share for all wolf pack members via lunar bonding',
-    color: 'bg-purple-500',
-    icon: '🐺',
-    funFact: 'Each token represents one howl at the moon!'
-  },
-  {
-    percentage: 21,
-    label: 'Alpha Wolf Purchase 🎯',
-    description: 'Early wolves who joined the pack at launch',
-    color: 'bg-purple-700',
-    icon: '🐾',
-    funFact: 'First 100 wolves get a limited "Early Howler" badge'
-  },
-  {
-    percentage: 10,
-    label: 'Pack Airdrops 🎁',
-    description: 'Surprise treats for loyal pack members',
-    color: 'bg-purple-600',
-    icon: '🦴',
-    funFact: 'Random full moon surprises for active members'
-  },
-  {
-    percentage: 5,
-    label: 'Howl Marketing 📢',
-    description: 'Spreading the legend of Larry far and wide',
-    color: 'bg-purple-800',
-    icon: '🎪',
-    funFact: 'Part of this funds Larry\'s comedy tour!'
-  }
-];
-
-const WolfFeatures = [
-  {
-    title: 'Fair Moon Launch 🌕',
-    description: 'Everyone starts as a pup - no VIP wolves here!',
-    icon: '🚀',
-    extraIcons: ['🌙', '✨', '🐺']
-  },
-  {
-    title: 'Community Den 🏰',
-    description: 'The pack decides together - democracy at its finest!',
-    icon: '🐾',
-    extraIcons: ['🗳️', '🤝', '🎭']
-  },
-  {
-    title: 'Anti-Dump Protection 🛡️',
-    description: 'Smart contracts prevent paper-pawed panic!',
-    icon: '🔒',
-    extraIcons: ['💎', '🐾', '✨']
-  }
-];
-
 export default function Tokenomics() {
+  const protocolMechanics = [
+    {
+      title: "ETH Backing",
+      value: "100%",
+      description: "Every LARRY token is backed by ETH in the protocol treasury, providing intrinsic value",
+      icon: "🔐",
+      highlight: true
+    },
+    {
+      title: "Max Supply",
+      value: "1B LARRY",
+      description: "Fixed maximum supply of 1,000,000,000 tokens ensures scarcity",
+      icon: "💎"
+    },
+    {
+      title: "Trading Fees",
+      value: "0.05%",
+      description: "Ultra-low trading fees on both buy and sell transactions",
+      icon: "💸"
+    },
+    {
+      title: "Team Allocation",
+      value: "5%",
+      description: "Small team allocation ensures community-first approach",
+      icon: "👥"
+    }
+  ];
+
+  const feeStructure = [
+    {
+      type: "Buy Fee",
+      rate: "0.05%",
+      description: "Minimal fee on token purchases",
+      icon: "📈"
+    },
+    {
+      type: "Sell Fee",
+      rate: "0.05%",
+      description: "Minimal fee on token sales",
+      icon: "📉"
+    },
+    {
+      type: "Borrow Interest",
+      rate: "3.9% APR",
+      description: "Annual interest rate for borrowers",
+      icon: "💰"
+    },
+    {
+      type: "Origination Fee",
+      rate: "0.1%",
+      description: "One-time fee on new loans",
+      icon: "📋"
+    }
+  ];
+
+  const protocolFeatures = [
+    {
+      title: "Price Stability",
+      description: "ETH backing creates a price floor that prevents token value from going to zero",
+      icon: "⚖️"
+    },
+    {
+      title: "Automatic Liquidation",
+      description: "Expired loans are automatically liquidated, maintaining protocol health",
+      icon: "🔄"
+    },
+    {
+      title: "Over-Collateralization",
+      description: "All loans require minimum 101% collateral for protocol security",
+      icon: "🛡️"
+    },
+    {
+      title: "Flash Loan Capability",
+      description: "Close positions instantly using flash loans without external capital",
+      icon: "⚡"
+    }
+  ];
+
   return (
-    <section id="tokenomics" className="py-24 bg-gradient-to-b from-purple-900/20 to-black relative overflow-hidden">
-      {/* Animated background */}
+    <section id="tokenomics" className="py-24 bg-gradient-to-b from-purple-900/10 to-black relative overflow-hidden">
       <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-[url('/images/moon-bg.png')] bg-cover opacity-10" />
-        <div className="absolute inset-0 bg-black/50" />
+        <div className="absolute inset-0 bg-[url('/images/stars.png')] bg-cover opacity-5" />
       </div>
       
       <div className="container mx-auto px-4 relative z-10">
@@ -75,133 +95,123 @@ export default function Tokenomics() {
           className="text-center mb-16"
         >
           <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-            Larry's Token Treasury 🐺
+            Protocol Economics
           </h2>
-          <p className="text-xl text-purple-300 max-w-3xl mx-auto">
-            Total Pack Size: 1,000,000,000,000,000 $LARRY 🌕
-          </p>
-          <p className="text-purple-400 mt-2">
-            (That's a lot of howls!)
+          <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+            LARRY's innovative tokenomics create a sustainable, ETH-backed ecosystem with aligned incentives for all participants
           </p>
         </motion.div>
 
-        {/* Token Distribution */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
-          {/* Distribution Cards */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            className="space-y-6"
-          >
-            {TokenomicsData.map((item, index) => (
+        {/* Core Mechanics */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
+          {protocolMechanics.map((item, index) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: index * 0.1 }}
+              className={`bg-purple-900/10 backdrop-blur-sm rounded-xl p-6 border ${
+                item.highlight ? 'border-purple-400' : 'border-purple-500/20'
+              } hover:border-purple-500/40 transition-all duration-300`}
+            >
+              <div className="text-4xl mb-4">{item.icon}</div>
+              <h3 className="text-xl font-bold text-white mb-2">{item.title}</h3>
+              <p className="text-3xl font-bold text-purple-400 mb-2">{item.value}</p>
+              <p className="text-gray-400 text-sm">{item.description}</p>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Fee Structure */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mb-16"
+        >
+          <h3 className="text-3xl font-bold text-white text-center mb-8">Fee Structure</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {feeStructure.map((fee, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, x: index % 2 === 0 ? -20 : 20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+                className="bg-purple-900/10 backdrop-blur-sm rounded-xl p-6 border border-purple-500/20 hover:border-purple-500/40 transition-all duration-300"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="text-3xl">{fee.icon}</div>
+                  <div className="flex-1">
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="text-lg font-bold text-white">{fee.type}</h4>
+                      <span className="text-xl font-bold text-purple-400">{fee.rate}</span>
+                    </div>
+                    <p className="text-gray-400">{fee.description}</p>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* Protocol Features */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mb-16"
+        >
+          <h3 className="text-3xl font-bold text-white text-center mb-8">Protocol Features</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {protocolFeatures.map((feature, index) => (
               <motion.div
                 key={index}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: index * 0.2 }}
-                className="bg-purple-900/20 backdrop-blur-sm rounded-xl p-6 border border-purple-500/20
-                          hover:border-purple-500/40 transition-all duration-300
-                          hover:transform hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/20"
+                transition={{ delay: index * 0.1 }}
+                className="bg-gradient-to-r from-purple-900/20 to-purple-800/20 rounded-xl p-6 border border-purple-500/20"
               >
-                <div className="flex items-center gap-4 mb-4">
-                  <span className="text-4xl">{item.icon}</span>
-                  <div className="flex-1">
-                    <div className="flex justify-between items-center">
-                      <h3 className="text-xl font-bold text-white">{item.label}</h3>
-                      <span className="text-2xl font-bold text-purple-400">{item.percentage}%</span>
-                    </div>
-                    <p className="text-gray-300 mt-1">{item.description}</p>
+                <div className="flex items-start gap-4">
+                  <div className="text-3xl mt-1">{feature.icon}</div>
+                  <div>
+                    <h4 className="text-xl font-bold text-white mb-2">{feature.title}</h4>
+                    <p className="text-gray-400">{feature.description}</p>
                   </div>
                 </div>
-                <div className="h-3 bg-purple-900/30 rounded-full overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    whileInView={{ width: `${item.percentage}%` }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 1, delay: index * 0.2 }}
-                    className={`h-full ${item.color}`}
-                  />
-                </div>
-                <p className="text-purple-300/80 text-sm mt-3 italic">
-                  {item.funFact}
-                </p>
               </motion.div>
             ))}
-          </motion.div>
-
-          {/* Features */}
-          <div className="space-y-6">
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              className="bg-purple-900/20 backdrop-blur-sm rounded-xl p-6 border border-purple-500/20"
-            >
-              <h3 className="text-2xl font-bold text-white mb-6">Pack Features 🐾</h3>
-              <div className="space-y-6">
-                {WolfFeatures.map((feature, index) => (
-                  <motion.div
-                    key={index}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: index * 0.2 }}
-                    className="flex items-start gap-4 group"
-                  >
-                    <div className="flex flex-col items-center">
-                      <span className="text-3xl mb-2">{feature.icon}</span>
-                      <div className="flex gap-1">
-                        {feature.extraIcons.map((icon, i) => (
-                          <span key={i} className="text-lg transform hover:scale-125 transition-transform cursor-pointer">
-                            {icon}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <h4 className="text-xl font-semibold text-white group-hover:text-purple-300 transition-colors">
-                        {feature.title}
-                      </h4>
-                      <p className="text-gray-300">
-                        {feature.description}
-                      </p>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
-
-            {/* Fun Stats */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="bg-purple-900/20 backdrop-blur-sm rounded-xl p-6 border border-purple-500/20"
-            >
-              <h3 className="text-xl font-bold text-white mb-4">Fun Pack Stats 📊</h3>
-              <ul className="space-y-2 text-gray-300">
-                <li>• Average Howls Per Minute: Over 9000! 🐺</li>
-                <li>• Moon Phases Tracked: All of them! 🌑🌒🌓🌔🌕</li>
-                <li>• Squirrels Chased: Still counting... 🐿️</li>
-                <li>• Pants Ripped During Transformation: Too many! 👖</li>
-              </ul>
-            </motion.div>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Call to Action */}
+        {/* Value Proposition */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-center"
+          className="bg-gradient-to-r from-purple-900/30 to-purple-800/30 rounded-2xl p-8 border border-purple-500/20"
         >
-          <button className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-full font-medium text-lg transition-colors
-                           transform hover:scale-105 hover:shadow-lg hover:shadow-purple-500/50">
-            Join the Pack! 🐺
-          </button>
+          <div className="text-center">
+            <h3 className="text-2xl font-bold text-white mb-4">
+              The LARRY Advantage
+            </h3>
+            <p className="text-gray-300 max-w-3xl mx-auto mb-6">
+              Unlike traditional DeFi protocols, LARRY combines the best of both worlds: the upside potential of a token with the downside protection of ETH backing. Our innovative bonding curve ensures that each token always has intrinsic value, creating a sustainable ecosystem for traders, borrowers, and lenders alike.
+            </p>
+            <div className="flex flex-wrap justify-center gap-4">
+              <div className="bg-purple-900/40 rounded-lg px-4 py-2 border border-purple-500/20">
+                <span className="text-purple-400 font-bold">Zero Liquidation Risk</span> for Lenders
+              </div>
+              <div className="bg-purple-900/40 rounded-lg px-4 py-2 border border-purple-500/20">
+                <span className="text-purple-400 font-bold">100% ETH Backed</span> Token Value
+              </div>
+              <div className="bg-purple-900/40 rounded-lg px-4 py-2 border border-purple-500/20">
+                <span className="text-purple-400 font-bold">Automated</span> Market Making
+              </div>
+            </div>
+          </div>
         </motion.div>
       </div>
     </section>

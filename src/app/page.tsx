@@ -1,29 +1,17 @@
 import Hero from '@/components/Hero';
-import About from '@/components/About';
+import Features from '@/components/Features';
 import Tokenomics from '@/components/Tokenomics';
-import Roadmap from '@/components/Roadmap';
-import Community from '@/components/Community';
-import HowToBuy from '@/components/HowToBuy';
-import LunarPhases from '@/components/LunarPhases';
-import TransformationTales from '@/components/TransformationTales';
-import WolfPackBenefits from '@/components/WolfPackBenefits';
-import WolfPackAchievements from '@/components/WolfPackAchievements';
-import HowlGallery from '@/components/HowlGallery';
+import ProtocolStats from '@/components/ProtocolStats';
+import AdvancedStrategies from '@/components/AdvancedStrategies';
 
 export default function Home() {
   return (
     <div className="min-h-screen bg-black">
       <Hero />
-      <About />
-      <HowToBuy />
-      <TransformationTales />
-      <LunarPhases />
-      <WolfPackBenefits />
-      <WolfPackAchievements />
-      <HowlGallery />
+      <ProtocolStats />
+      <Features />
       <Tokenomics />
-      <Roadmap />
-      <Community />
+      <AdvancedStrategies />
     </div>
   );
 }

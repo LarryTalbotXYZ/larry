@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import "./globals.css";
 
 const geistSans = localFont({
@@ -15,8 +16,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "$LARRY - The Werewolf Meme Coin",
-  description: "Join the pack with $LARRY - The most howl-arious meme coin on the blockchain!",
+  title: "LARRY Protocol - ETH-Backed DeFi Token",
+  description: "Revolutionary DeFi protocol with ETH-backed tokens, zero liquidation risk, and up to 99% leverage.",
   icons: {
     icon: '/fonts/logo32x32.png',
     apple: '/fonts/logo32x32.png',
@@ -33,6 +34,7 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} font-sans bg-black text-white`}>
         <Navbar />
         {children}
+        <Footer />
       </body>
     </html>
   );

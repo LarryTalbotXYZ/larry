@@ -3,29 +3,18 @@
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
-
-const moonPhases = ['🌑', '🌒', '🌓', '🌔', '🌕', '🌖', '🌗', '🌘'];
+import Link from 'next/link';
 
 export default function Hero() {
-  const [currentPhase, setCurrentPhase] = useState(0);
   const [windowSize, setWindowSize] = useState({ width: 1000, height: 800 });
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentPhase((prev) => (prev + 1) % moonPhases.length);
-    }, 2000);
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
     if (typeof window !== 'undefined') {
-      // Initialize window size
       setWindowSize({
         width: window.innerWidth,
         height: window.innerHeight
       });
 
-      // Update window size on resize
       const handleResize = () => {
         setWindowSize({
           width: window.innerWidth,
@@ -61,16 +50,16 @@ export default function Hero() {
   };
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-b from-purple-900/20 via-black to-black">
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-b from-purple-900/10 via-black to-black">
       {/* Animated Background */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute inset-0 bg-[url('/moon-texture.png')] bg-cover opacity-5" />
+        <div className="absolute inset-0 bg-[url('/images/stars.png')] bg-cover opacity-10" />
         
         {/* Floating Elements */}
-        {[...Array(20)].map((_, i) => (
+        {[...Array(15)].map((_, i) => (
           <motion.div
             key={i}
-            className="absolute h-2 w-2 bg-purple-500/30 rounded-full"
+            className="absolute h-1 w-1 bg-purple-400/20 rounded-full"
             animate={{
               x: [
                 Math.random() * (windowSize.width || 1000),
@@ -82,7 +71,7 @@ export default function Hero() {
               ],
             }}
             transition={{
-              duration: Math.random() * 10 + 10,
+              duration: Math.random() * 20 + 10,
               repeat: Infinity,
               ease: "linear"
             }}
@@ -95,7 +84,7 @@ export default function Hero() {
       </div>
 
       <div className="container mx-auto px-4 relative z-10">
-        <div className="text-center max-w-4xl mx-auto">
+        <div className="text-center max-w-6xl mx-auto">
           {/* Logo */}
           <motion.div
             initial={{ scale: 0, rotate: -180 }}
@@ -106,38 +95,28 @@ export default function Hero() {
               damping: 20,
               duration: 1.5 
             }}
-            className="relative w-48 h-48 mx-auto mb-8"
+            className="relative w-32 h-32 mx-auto mb-8"
           >
             <Image
-              src="https://i.ibb.co/sv1n1sW/OIP.jpg"
+              src="/images/logo32x32.png"
               alt="Larry Talbot Logo"
-              width={192}
-              height={192}
-              className="rounded-full border-4 border-purple-500/50 shadow-lg shadow-purple-500/20"
+              width={128}
+              height={128}
+              className="rounded-full border-4 border-purple-500/30 shadow-lg shadow-purple-500/10"
               priority
             />
             <motion.div
-              className="absolute inset-0 rounded-full border-4 border-purple-400/50"
+              className="absolute inset-0 rounded-full border-4 border-purple-400/30"
               animate={{
                 scale: [1, 1.1, 1],
-                opacity: [1, 0.5, 1],
+                opacity: [0.3, 0.1, 0.3],
               }}
               transition={{
-                duration: 2,
+                duration: 3,
                 repeat: Infinity,
                 ease: "easeInOut"
               }}
             />
-          </motion.div>
-
-          {/* Moon Phase Animation */}
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ duration: 0.5 }}
-            className="text-6xl mb-6 animate-pulse"
-          >
-            {moonPhases[currentPhase]}
           </motion.div>
 
           {/* Main Title */}
@@ -147,11 +126,10 @@ export default function Hero() {
             variants={textVariants}
             className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight"
           >
-            Unleash the Power of{" "}
+            ETH-Backed{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-purple-600">
-              Larry Talbot
-            </span>{" "}
-            <span className="text-purple-400">($LARRY)</span> 🐾
+              DeFi Protocol
+            </span>
           </motion.h1>
 
           {/* Subtitle */}
@@ -159,9 +137,9 @@ export default function Hero() {
             initial="hidden"
             animate="visible"
             variants={textVariants}
-            className="text-xl md:text-2xl text-gray-300 mb-12 leading-relaxed"
+            className="text-xl md:text-2xl text-gray-300 mb-12 leading-relaxed max-w-3xl mx-auto"
           >
-            The meme coin inspired by legends. Larry is loyal, fun, and ready to lead the pack.
+            LARRY is a revolutionary DeFi token backed by ETH reserves. Trade, borrow, and leverage with guaranteed liquidity and zero liquidation risk for lenders.
           </motion.p>
 
           {/* CTA Buttons */}
@@ -169,48 +147,56 @@ export default function Hero() {
             initial="hidden"
             animate="visible"
             variants={textVariants}
-            className="flex flex-wrap justify-center gap-4"
+            className="flex flex-wrap justify-center gap-4 mb-16"
           >
-            <motion.a
-              href="https://app.uniswap.org/swap?chain=optimism&inputCurrency=NATIVE&outputCurrency=0xad984fbd3fb10d0b47d561be7295685af726fdb3"
-              target="_blank"
-              rel="noopener noreferrer"
-              variants={buttonVariants}
-              whileHover="hover"
-              className="px-8 py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-full font-bold text-lg transition-colors shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40"
-            >
-              Buy $LARRY 🌕
-            </motion.a>
+            <Link href="/dashboard">
+              <motion.button
+                variants={buttonVariants}
+                whileHover="hover"
+                className="px-8 py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold text-lg transition-colors shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40"
+              >
+                Launch Dashboard
+              </motion.button>
+            </Link>
             
             <motion.a
-              href="https://twitter.com/LarryTalbotXYZ"
+              href="https://basescan.org/address/YOUR_CONTRACT_ADDRESS"
               target="_blank"
               rel="noopener noreferrer"
               variants={buttonVariants}
               whileHover="hover"
-              className="px-8 py-4 bg-transparent border-2 border-purple-500 text-white rounded-full font-bold text-lg transition-colors hover:bg-purple-500/10"
+              className="px-8 py-4 bg-transparent border-2 border-purple-500 text-white rounded-lg font-bold text-lg transition-colors hover:bg-purple-500/10"
             >
-              Join the Pack 🐺
+              View Contract
             </motion.a>
           </motion.div>
 
           {/* Feature Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-20">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-20">
             {[
               {
-                title: "Fair Launch",
-                description: "No Presale, Equal Opportunity",
-                icon: "🚀"
+                title: "ETH-Backed",
+                description: "Every LARRY token is backed by ETH in the protocol treasury",
+                icon: "🔐",
+                stat: "100% Backed"
               },
               {
-                title: "Community-Driven",
-                description: "No Team Allocation",
-                icon: "🤝"
+                title: "0% Liquidation",
+                description: "Lenders never face liquidation risk - protocol guarantees repayment",
+                icon: "🛡️",
+                stat: "Zero Risk"
               },
               {
-                title: "Autonomous Agents",
-                description: "Rewarding Community Milestones",
-                icon: "🎯"
+                title: "Instant Liquidity",
+                description: "Trade in and out instantly with automated market making",
+                icon: "⚡",
+                stat: "24/7 Trading"
+              },
+              {
+                title: "Leverage Up",
+                description: "Access up to 99% leverage on your positions",
+                icon: "📈",
+                stat: "99% LTV"
               }
             ].map((feature, index) => (
               <motion.div
@@ -218,7 +204,7 @@ export default function Hero() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 + index * 0.1 }}
-                className="p-6 rounded-2xl bg-purple-900/20 backdrop-blur-sm border border-purple-500/20 hover:border-purple-500/40 transition-all duration-300 group"
+                className="p-6 rounded-xl bg-purple-900/10 backdrop-blur-sm border border-purple-500/20 hover:border-purple-500/40 transition-all duration-300 group"
               >
                 <div className="text-4xl mb-4 group-hover:scale-110 transition-transform duration-300">
                   {feature.icon}
@@ -226,12 +212,16 @@ export default function Hero() {
                 <h3 className="text-xl font-bold text-white mb-2">
                   {feature.title}
                 </h3>
-                <p className="text-gray-400">
+                <p className="text-gray-400 mb-3 text-sm">
                   {feature.description}
                 </p>
+                <div className="text-purple-400 font-bold text-lg">
+                  {feature.stat}
+                </div>
               </motion.div>
             ))}
           </div>
+
         </div>
       </div>
     </section>
