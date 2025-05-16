@@ -23,7 +23,7 @@ export default function Dashboard() {
   }, []);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen pt-16">
       {/* Header */}
       <WalletHeader />
 
