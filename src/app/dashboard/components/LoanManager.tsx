@@ -5,6 +5,110 @@ import { motion } from 'framer-motion';
 import { getContract, formatEther, parseEther, formatUnits } from '../utils/web3Config';
 import { useWallet } from '../providers/WalletProvider';
 
+// Component for the extend loan slider
+function ExtendLoanSlider({ currentLoan, extendDays, setExtendDays, extendFee }: {
+  currentLoan: any;
+  extendDays: string;
+  setExtendDays: (days: string) => void;
+  extendFee: string;
+}) {
+  // Calculate the maximum days that can be extended (total loan can't exceed 1 year from original start)
+  const currentEndDate = new Date(Number(currentLoan.endDate) * 1000);
+  
+  // Calculate when the loan originally started
+  // The loan started numberOfDays ago from the end date
+  const loanStartDate = new Date(currentEndDate);
+  loanStartDate.setDate(loanStartDate.getDate() - Number(currentLoan.numberOfDays));
+  
+  // Maximum total loan duration is 365 days
+  const maxTotalDays = 365;
+  
+  // Calculate how many days the loan will have been active by its current end date
+  const daysFromStartToCurrentEnd = Number(currentLoan.numberOfDays);
+  
+  // Maximum extension is 365 days minus the current loan duration
+  const maxExtensionDays = Math.max(1, maxTotalDays - daysFromStartToCurrentEnd);
+  
+  return (
+    <div className="space-y-4 mb-4">
+      <label className="block text-gray-400">
+        Extend by: <span className="text-white font-medium">{extendDays} days</span>
+      </label>
+      
+      {/* Quick preset buttons */}
+      <div className="flex gap-2 flex-wrap">
+        {[1, 7, 30, 90, 180, 365]
+          .filter(days => days <= maxExtensionDays)
+          .filter((days, index, arr) => arr.indexOf(days) === index) // Remove duplicates
+          .map((days) => (
+            <button
+              key={days}
+              type="button"
+              onClick={() => setExtendDays(days.toString())}
+              className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                extendDays === days.toString() ? 'bg-purple-600 text-white' : 'bg-purple-800/20 text-purple-400 hover:bg-purple-800/30'
+              }`}
+            >
+              {days === maxExtensionDays ? `Max (${days} days)` : 
+               days === 365 ? '1 year' : 
+               days === 180 ? '6 months' : 
+               days === 90 ? '3 months' : 
+               days === 30 ? '1 month' : 
+               days === 7 ? '1 week' : '1 day'}
+            </button>
+          ))}
+      </div>
+      
+      {/* Slider */}
+      <div className="relative pt-2 pb-6">
+        <input
+          type="range"
+          min="1"
+          max={maxExtensionDays}
+          value={extendDays}
+          onChange={(e) => setExtendDays(e.target.value)}
+          className="w-full h-2 bg-purple-800/30 rounded-lg appearance-none cursor-pointer slider"
+          style={{
+            background: `linear-gradient(to right, #a855f7 0%, #a855f7 ${(Number(extendDays) / maxExtensionDays) * 100}%, #4c1d95 ${(Number(extendDays) / maxExtensionDays) * 100}%, #4c1d95 100%)`
+          }}
+        />
+        <div className="absolute flex justify-between w-full px-2 top-8 text-xs text-gray-500">
+          <span>1</span>
+          <span>{maxExtensionDays} days max</span>
+        </div>
+      </div>
+      
+      <div className="space-y-1 text-sm">
+        <p className="text-gray-400">
+          Loan start date: <span className="text-white">{loanStartDate.toLocaleDateString()}</span>
+        </p>
+        <p className="text-gray-400">
+          Current duration: <span className="text-white">{currentLoan.numberOfDays} days</span>
+        </p>
+        <p className="text-gray-400">
+          Current end date: <span className="text-white">{currentEndDate.toLocaleDateString()}</span>
+        </p>
+        <p className="text-gray-400">
+          New end date: <span className="text-white">
+            {new Date(currentEndDate.getTime() + Number(extendDays) * 24 * 60 * 60 * 1000).toLocaleDateString()}
+          </span>
+        </p>
+        <p className="text-gray-400">
+          Total duration after extension: <span className="text-white">{daysFromStartToCurrentEnd + Number(extendDays)} days</span>
+        </p>
+        <p className="text-gray-400">
+          Extension fee: <span className="text-yellow-400">{extendFee} ETH</span>
+        </p>
+        {maxExtensionDays === 0 && (
+          <p className="text-red-400">
+            This loan has already reached the maximum duration of 365 days.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function LoanManager() {
   const { connected, address, signer, connect } = useWallet();
   const [activeTab, setActiveTab] = useState<'borrow' | 'manage'>('borrow');
@@ -443,11 +547,26 @@ export default function LoanManager() {
   const handleExtendLoan = async () => {
     if (!connected || !currentLoan.hasLoan || !signer || currentLoan.isExpired) return;
     
+    // Check if extension would exceed 365 days total
+    const currentDuration = Number(currentLoan.numberOfDays);
+    const extensionDays = Number(extendDays);
+    const totalDuration = currentDuration + extensionDays;
+    
+    if (totalDuration > 365) {
+      alert(`Cannot extend loan beyond 365 days total. Current duration: ${currentDuration} days. Maximum extension: ${365 - currentDuration} days.`);
+      return;
+    }
+    
     setLoading(true);
     try {
       const contract = await getContract(signer);
       const days = BigInt(extendDays);
-      const fee = parseEther(extendFee);
+      
+      // Get the calculated fee for the extension
+      const fee = await contract.getInterestFee(
+        parseEther(currentLoan.borrowed),
+        days
+      );
       
       const tx = await contract.extendLoan(days, { value: fee });
       await tx.wait();
@@ -922,25 +1041,12 @@ export default function LoanManager() {
                       {/* Extend Loan */}
                       <div className="border-t border-purple-500/20 pt-4">
                         <h3 className="text-lg font-semibold mb-3 text-purple-400">Extend Loan</h3>
-                        <div className="mb-3">
-                          <label className="block text-gray-400 mb-2">
-                            Additional Days
-                          </label>
-                          <select
-                            value={extendDays}
-                            onChange={(e) => setExtendDays(e.target.value)}
-                            className="w-full px-4 py-3 bg-purple-800/20 border border-purple-500/30 rounded-lg text-white focus:outline-none focus:border-purple-400 transition-colors"
-                          >
-                            <option value="1">1 Day</option>
-                            <option value="3">3 Days</option>
-                            <option value="7">7 Days</option>
-                            <option value="14">14 Days</option>
-                            <option value="30">30 Days</option>
-                          </select>
-                          <p className="text-sm text-gray-400 mt-2">
-                            Extension fee: {extendFee} ETH
-                          </p>
-                        </div>
+                        <ExtendLoanSlider
+                          currentLoan={currentLoan}
+                          extendDays={extendDays}
+                          setExtendDays={setExtendDays}
+                          extendFee={extendFee}
+                        />
                         <motion.button
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
