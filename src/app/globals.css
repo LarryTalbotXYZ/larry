@@ -20,3 +20,89 @@ body {
 .bg-gradient-conic {
   background-image: conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops));
 }
+
+/* Custom slider styles */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-track {
+  background: transparent;
+  height: 8px;
+  border-radius: 9999px;
+}
+
+input[type="range"]::-moz-range-track {
+  background: transparent;
+  height: 8px;
+  border-radius: 9999px;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  background: #a855f7;
+  border: 2px solid #c084fc;
+  border-radius: 50%;
+  cursor: pointer;
+  margin-top: -6px;
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
+  transition: all 0.2s ease;
+}
+
+input[type="range"]::-moz-range-thumb {
+  border: none;
+  width: 20px;
+  height: 20px;
+  background: #a855f7;
+  border: 2px solid #c084fc;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
+  transition: all 0.2s ease;
+}
+
+input[type="range"]:hover::-webkit-slider-thumb {
+  box-shadow: 0 0 15px rgba(168, 85, 247, 0.7);
+  transform: scale(1.1);
+}
+
+input[type="range"]:hover::-moz-range-thumb {
+  box-shadow: 0 0 15px rgba(168, 85, 247, 0.7);
+  transform: scale(1.1);
+}
+
+input[type="range"]:focus {
+  outline: none;
+}
+
+input[type="range"]:focus::-webkit-slider-thumb {
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.9);
+}
+
+/* 3D Transforms */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.perspective-500 {
+  perspective: 500px;
+}
+
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+
+.rotateX-15 {
+  transform: rotateX(15deg);
+}
+
+/* Glow effect */
+.shadow-glow {
+  box-shadow: 0 0 20px currentColor, 0 0 40px currentColor;
+}
