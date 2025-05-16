@@ -84,3 +84,25 @@ input[type="range"]:focus {
 input[type="range"]:focus::-webkit-slider-thumb {
   box-shadow: 0 0 20px rgba(168, 85, 247, 0.9);
 }
+
+/* 3D Transforms */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.perspective-500 {
+  perspective: 500px;
+}
+
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+
+.rotateX-15 {
+  transform: rotateX(15deg);
+}
+
+/* Glow effect */
+.shadow-glow {
+  box-shadow: 0 0 20px currentColor, 0 0 40px currentColor;
+}

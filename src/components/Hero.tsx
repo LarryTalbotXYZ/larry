@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import Larry3DBanner from './Larry3DBanner';
 
 export default function Hero() {
   const [windowSize, setWindowSize] = useState({ width: 1000, height: 800 });
@@ -56,67 +57,53 @@ export default function Hero() {
         <div className="absolute inset-0 bg-[url('/images/stars.png')] bg-cover opacity-10" />
         
         {/* Floating Elements */}
-        {[...Array(15)].map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute h-1 w-1 bg-purple-400/20 rounded-full"
-            animate={{
-              x: [
-                Math.random() * (windowSize.width || 1000),
-                Math.random() * (windowSize.width || 1000)
-              ],
-              y: [
-                Math.random() * (windowSize.height || 800),
-                Math.random() * (windowSize.height || 800)
-              ],
-            }}
-            transition={{
-              duration: Math.random() * 20 + 10,
-              repeat: Infinity,
-              ease: "linear"
-            }}
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-            }}
-          />
-        ))}
+        {[...Array(15)].map((_, i) => {
+          // Generate deterministic values based on index
+          const seed1 = (i * 7 + 1) % 13;
+          const seed2 = (i * 11 + 5) % 17;
+          const seed3 = (i * 13 + 3) % 19;
+          const seed4 = (i * 17 + 7) % 23;
+          
+          const x1 = (seed1 / 13) * (windowSize.width || 1000);
+          const x2 = (seed2 / 17) * (windowSize.width || 1000);
+          const y1 = (seed3 / 19) * (windowSize.height || 800);
+          const y2 = (seed4 / 23) * (windowSize.height || 800);
+          const duration = (seed1 / 13) * 20 + 10;
+          const left = (seed2 / 17) * 100;
+          const top = (seed3 / 19) * 100;
+          
+          return (
+            <motion.div
+              key={i}
+              className="absolute h-1 w-1 bg-purple-400/20 rounded-full"
+              animate={{
+                x: [x1, x2],
+                y: [y1, y2],
+              }}
+              transition={{
+                duration: duration,
+                repeat: Infinity,
+                ease: "linear"
+              }}
+              style={{
+                left: `${left}%`,
+                top: `${top}%`,
+              }}
+            />
+          );
+        })}
       </div>
 
       <div className="container mx-auto px-4 relative z-10">
         <div className="text-center max-w-6xl mx-auto">
-          {/* Logo */}
+          {/* Larry 3D Banner */}
           <motion.div
-            initial={{ scale: 0, rotate: -180 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ 
-              type: "spring",
-              stiffness: 260,
-              damping: 20,
-              duration: 1.5 
-            }}
-            className="relative w-32 h-32 mx-auto mb-8"
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, ease: "easeOut" }}
+            className="mb-12"
           >
-            <Image
-              src="/images/logo32x32.png"
-              alt="Larry Talbot Logo"
-              width={128}
-              height={128}
-              className="rounded-full border-4 border-purple-500/30 shadow-lg shadow-purple-500/10"
-              priority
-            />
-            <motion.div
-              className="absolute inset-0 rounded-full border-4 border-purple-400/30"
-              animate={{
-                scale: [1, 1.1, 1],
-                opacity: [0.3, 0.1, 0.3],
-              }}
-              transition={{
-                duration: 3,
-                repeat: Infinity,
-                ease: "easeInOut"
-              }}
-            />
+            <Larry3DBanner />
           </motion.div>
 
           {/* Main Title */}

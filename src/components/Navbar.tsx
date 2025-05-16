@@ -10,11 +10,10 @@ export default function Navbar() {
 
   const menuItems = [
     { title: "$LARRY", href: "/" },
-    { title: "About", href: "#about" },
-    { title: "How to Buy", href: "#how-to-buy" },
+    { title: "Dashboard", href: "/dashboard" },
+    { title: "Stats", href: "#stats" },
+    { title: "Features", href: "#features" },
     { title: "Tokenomics", href: "#tokenomics" },
-    { title: "Roadmap", href: "#roadmap" },
-    { title: "Community", href: "#community" },
   ];
 
   return (
@@ -29,7 +28,7 @@ export default function Navbar() {
           >
             <Link href="/" className="flex items-center">
               <Image
-                src="https://i.ibb.co/sv1n1sW/OIP.jpg"
+                src="/images/logo32x32.png"
                 alt="Larry Talbot Logo"
                 width={40}
                 height={40}
