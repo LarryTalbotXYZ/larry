@@ -13,10 +13,19 @@ export default function LoanManager() {
   // Borrow form state
   const [borrowAmount, setBorrowAmount] = useState('');
   const [borrowDays, setBorrowDays] = useState('7');
+  const [borrowType, setBorrowType] = useState<'normal' | 'leverage' | 'more'>('normal');
   const [borrowPreview, setBorrowPreview] = useState({
     collateral: '0',
     interestFee: '0',
     leverageFee: '0',
+    totalPayment: '0',
+    youReceive: '0',
+  });
+  
+  // User balances
+  const [userBalances, setUserBalances] = useState({
+    larryBalance: '0',
+    ethBalance: '0',
   });
   
   // Current loan state
@@ -26,28 +35,76 @@ export default function LoanManager() {
     endDate: '0',
     numberOfDays: '0',
     hasLoan: false,
+    isExpired: false,
+  });
+  
+  // Borrowing limits
+  const [borrowLimits, setBorrowLimits] = useState({
+    maxNormalBorrow: '0',
+    maxLeverageBorrow: '0',
+    maxBorrowMore: '0',
+    maxRemoveCollateral: '0',
   });
   
   // Repay form state
   const [repayAmount, setRepayAmount] = useState('');
+  
+  // Remove collateral form state
+  const [removeAmount, setRemoveAmount] = useState('');
+  
+  // Extend loan state
+  const [extendDays, setExtendDays] = useState('7');
+  const [extendFee, setExtendFee] = useState('0');
 
   useEffect(() => {
     if (connected && address) {
       loadLoanData();
+      loadUserBalances();
     }
   }, [connected, address]);
 
   useEffect(() => {
-    if (borrowAmount && borrowDays) {
+    if (borrowAmount && (borrowDays || borrowType === 'more')) {
       calculateBorrowPreview();
     }
-  }, [borrowAmount, borrowDays]);
+  }, [borrowAmount, borrowDays, borrowType]);
+  
+  useEffect(() => {
+    if (currentLoan.hasLoan && extendDays) {
+      calculateExtendFee();
+    }
+  }, [currentLoan, extendDays]);
+  
+  useEffect(() => {
+    calculateBorrowingLimits();
+  }, [userBalances, currentLoan, borrowType]);
 
+  const loadUserBalances = async () => {
+    try {
+      const contract = await getContract();
+      const provider = await signer?.provider;
+      
+      if (provider && address) {
+        const [larryBalance, ethBalance] = await Promise.all([
+          contract.balanceOf(address),
+          provider.getBalance(address),
+        ]);
+        
+        setUserBalances({
+          larryBalance: formatUnits(larryBalance.toString()),
+          ethBalance: formatEther(ethBalance.toString()),
+        });
+      }
+    } catch (error) {
+      console.error('Error loading user balances:', error);
+    }
+  };
 
   const loadLoanData = async () => {
     try {
       const contract = await getContract();
       const loan = await contract.Loans(address);
+      const isExpired = await contract.isLoanExpired(address);
       
       setCurrentLoan({
         collateral: formatUnits(loan.collateral.toString()),
@@ -55,9 +112,78 @@ export default function LoanManager() {
         endDate: loan.endDate.toString(),
         numberOfDays: loan.numberOfDays.toString(),
         hasLoan: loan.borrowed > 0n,
+        isExpired: isExpired,
       });
+      
+      // Set appropriate borrow type based on loan status
+      if (loan.borrowed > 0n && !isExpired) {
+        setBorrowType('more');
+      } else {
+        setBorrowType('normal');
+      }
     } catch (error) {
       console.error('Error loading loan data:', error);
+    }
+  };
+  
+  const calculateBorrowingLimits = async () => {
+    try {
+      const contract = await getContract();
+      
+      if (borrowType === 'normal') {
+        // For normal borrowing, limit is based on LARRY balance
+        // You need LARRY collateral, so max borrow is what your LARRY can collateralize
+        const larryBalance = parseEther(userBalances.larryBalance);
+        if (larryBalance > 0n) {
+          const maxBorrowable = await contract.LARRYtoETH(larryBalance);
+          const maxAfterCollateralization = (maxBorrowable * 99n) / 100n; // 99% collateralization
+          setBorrowLimits(prev => ({ ...prev, maxNormalBorrow: formatEther(maxAfterCollateralization) }));
+        } else {
+          setBorrowLimits(prev => ({ ...prev, maxNormalBorrow: '0' }));
+        }
+      } else if (borrowType === 'leverage') {
+        // For leverage, limit is based on ETH balance minus fees
+        const ethBalance = parseEther(userBalances.ethBalance);
+        if (ethBalance > 0n) {
+          // Rough estimate - actual will depend on leverage fees
+          const maxLeverage = (ethBalance * 90n) / 100n; // Leave some for fees
+          setBorrowLimits(prev => ({ ...prev, maxLeverageBorrow: formatEther(maxLeverage) }));
+        } else {
+          setBorrowLimits(prev => ({ ...prev, maxLeverageBorrow: '0' }));
+        }
+      } else if (borrowType === 'more' && currentLoan.hasLoan) {
+        // For borrow more, calculate based on excess collateral
+        const collateral = parseEther(currentLoan.collateral);
+        const borrowed = parseEther(currentLoan.borrowed);
+        const collateralValue = await contract.LARRYtoETH(collateral);
+        const requiredCollateralValue = (borrowed * 100n) / 99n; // Required ETH value for 99% collateralization
+        
+        let maxAdditionalBorrow = 0n;
+        
+        if (collateralValue > requiredCollateralValue) {
+          // We have excess collateral - calculate how much more we can borrow
+          const excessValue = collateralValue - requiredCollateralValue;
+          maxAdditionalBorrow = (excessValue * 99n) / 100n;
+        }
+        
+        // Also check if user has additional LARRY balance to add as collateral
+        const larryBalance = parseEther(userBalances.larryBalance);
+        if (larryBalance > 0n) {
+          const additionalValue = await contract.LARRYtoETH(larryBalance);
+          const additionalBorrowPower = (additionalValue * 99n) / 100n;
+          maxAdditionalBorrow = maxAdditionalBorrow + additionalBorrowPower;
+        }
+        
+        setBorrowLimits(prev => ({ ...prev, maxBorrowMore: formatEther(maxAdditionalBorrow) }));
+        
+        // Calculate max removable collateral (maintain at least 100.5% collateralization for safety)
+        const minRequiredValue = (borrowed * 1005n) / 990n; // 100.5% for safety margin
+        const minRequiredCollateral = await contract.ETHtoLARRYNoTradeCeil(minRequiredValue);
+        const removableCollateral = collateral > minRequiredCollateral ? collateral - minRequiredCollateral : 0n;
+        setBorrowLimits(prev => ({ ...prev, maxRemoveCollateral: formatUnits(removableCollateral) }));
+      }
+    } catch (error) {
+      console.error('Error calculating borrowing limits:', error);
     }
   };
 
@@ -65,97 +191,272 @@ export default function LoanManager() {
     try {
       const contract = await getContract();
       const ethAmount = parseEther(borrowAmount);
-      const days = BigInt(borrowDays);
       
-      // Get collateral requirement (LARRY needed)
-      const collateral = await contract.ETHtoLARRYNoTradeCeil(ethAmount);
-      
-      // Get interest fee
-      const interestFee = await contract.getInterestFee(ethAmount, days);
-      
-      // Get leverage fee
-      const leverageFee = await contract.leverageFee(ethAmount, days);
-      
-      setBorrowPreview({
-        collateral: formatUnits(collateral.toString()),
-        interestFee: formatEther(interestFee.toString()),
-        leverageFee: formatEther(leverageFee.toString()),
-      });
+      if (borrowType === 'normal') {
+        const days = BigInt(borrowDays);
+        
+        // Get collateral requirement
+        const collateral = BigInt(await contract.ETHtoLARRYNoTradeCeil(ethAmount));
+        
+        // Get interest fee
+        const interestFee = await contract.getInterestFee(ethAmount, days);
+        
+        // Calculate you receive (99% of borrowed amount - interest fee)
+        const borrowedAmount = (ethAmount * 99n) / 100n;
+        const youReceive = borrowedAmount - interestFee;
+        
+        setBorrowPreview({
+          collateral: formatUnits(collateral.toString()),
+          interestFee: formatEther(interestFee.toString()),
+          leverageFee: '0',
+          totalPayment: '0',
+          youReceive: formatEther(youReceive.toString()),
+        });
+      } else if (borrowType === 'leverage') {
+        const days = BigInt(borrowDays);
+        
+        // Get leverage fee
+        const leverageFee = await contract.leverageFee(ethAmount, days);
+        
+        // Total payment includes the ETH amount plus leverage fee
+        const totalPayment = ethAmount + leverageFee;
+        
+        // Collateral will be minted based on the ETH amount
+        const subValue = (leverageFee * 3n) / 10n + ethAmount / 100n;
+        const collateral = BigInt(await contract.ETHtoLARRYLev(ethAmount, subValue));
+        
+        setBorrowPreview({
+          collateral: formatUnits(collateral.toString()),
+          interestFee: '0',
+          leverageFee: formatEther(leverageFee.toString()),
+          totalPayment: formatEther(totalPayment.toString()),
+          youReceive: formatEther((ethAmount * 99n) / 100n),
+        });
+      } else if (borrowType === 'more') {
+        // Borrow more on existing loan
+        const endDate = BigInt(currentLoan.endDate);
+        const todayMidnight = await contract.getMidnightTimestamp(Math.floor(Date.now() / 1000));
+        const remainingDays = (endDate - todayMidnight) / 86400n;
+        
+        // Get interest fee for remaining days
+        const interestFee = await contract.getInterestFee(ethAmount, remainingDays);
+        
+        // Calculate required collateral
+        const userLARRY = BigInt(await contract.ETHtoLARRYNoTradeCeil(ethAmount));
+        
+        // Check if we need additional collateral from user
+        const currentCollateral = parseEther(currentLoan.collateral);
+        const currentBorrowed = parseEther(currentLoan.borrowed);
+        const newTotalBorrowed = currentBorrowed + ethAmount;
+        const requiredCollateral = BigInt(await contract.ETHtoLARRYNoTradeCeil(newTotalBorrowed));
+        
+        let additionalCollateralNeeded = 0n;
+        if (requiredCollateral > currentCollateral) {
+          additionalCollateralNeeded = userLARRY;
+          
+          // Check if we have excess collateral to reduce the requirement
+          const currentCollateralValue = await contract.LARRYtoETH(currentCollateral);
+          const requiredCollateralValue = (currentBorrowed * 100n) / 99n;
+          
+          if (currentCollateralValue > requiredCollateralValue) {
+            const excess = currentCollateralValue - requiredCollateralValue;
+            const excessInLarry = BigInt(await contract.ETHtoLARRYNoTrade(excess));
+            if (excessInLarry >= userLARRY) {
+              additionalCollateralNeeded = 0n;
+            } else {
+              additionalCollateralNeeded = userLARRY - excessInLarry;
+            }
+          }
+        }
+        
+        setBorrowPreview({
+          collateral: formatUnits(additionalCollateralNeeded.toString()),
+          interestFee: formatEther(interestFee.toString()),
+          leverageFee: '0',
+          totalPayment: '0',
+          youReceive: formatEther((ethAmount * 99n / 100n) - interestFee),
+        });
+      }
     } catch (error) {
       console.error('Preview calculation error:', error);
     }
   };
+  
+  const calculateExtendFee = async () => {
+    try {
+      const contract = await getContract();
+      const fee = await contract.getInterestFee(
+        parseEther(currentLoan.borrowed),
+        BigInt(extendDays)
+      );
+      setExtendFee(formatEther(fee.toString()));
+    } catch (error) {
+      console.error('Extend fee calculation error:', error);
+    }
+  };
 
   const handleBorrow = async () => {
-    if (!connected || !borrowAmount || !borrowDays || !signer) return;
+    if (!connected || !borrowAmount || !signer) return;
+    if ((borrowType === 'normal' || borrowType === 'leverage') && !borrowDays) return;
     
     setLoading(true);
     try {
       const contract = await getContract(signer);
-      
       const ethAmount = parseEther(borrowAmount);
-      const days = BigInt(borrowDays);
       
-      // Calculate total payment (ETH + fees)
-      const leverageFee = await contract.leverageFee(ethAmount, days);
-      const totalPayment = ethAmount + leverageFee;
-      
-      // Execute leverage transaction
-      const tx = await contract.leverage(ethAmount, days, { value: totalPayment });
-      await tx.wait();
+      if (borrowType === 'normal') {
+        const days = BigInt(borrowDays);
+        
+        // Execute borrow transaction - no ETH needed, just approval for LARRY transfer
+        const tx = await contract.borrow(ethAmount, days);
+        await tx.wait();
+        
+        alert('Borrow successful!');
+      } else if (borrowType === 'leverage') {
+        const days = BigInt(borrowDays);
+        
+        // Get leverage fee
+        const leverageFee = await contract.leverageFee(ethAmount, days);
+        const totalPayment = ethAmount + leverageFee;
+        
+        // Execute leverage transaction - needs ETH payment
+        const tx = await contract.leverage(ethAmount, days, { value: totalPayment });
+        await tx.wait();
+        
+        alert('Leverage position created!');
+      } else if (borrowType === 'more') {
+        // Execute borrow more transaction
+        const tx = await contract.borrowMore(ethAmount);
+        await tx.wait();
+        
+        alert('Additional borrow successful!');
+      }
       
       // Reset form and reload data
       setBorrowAmount('');
       setBorrowDays('7');
       loadLoanData();
-      
-      console.log('Borrow successful:', tx.hash);
-    } catch (error) {
+      loadUserBalances();
+    } catch (error: any) {
       console.error('Borrow error:', error);
+      alert(`Transaction failed: ${error.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const getBorrowLimit = () => {
+    switch (borrowType) {
+      case 'normal':
+        return borrowLimits.maxNormalBorrow;
+      case 'leverage':
+        return borrowLimits.maxLeverageBorrow;
+      case 'more':
+        return borrowLimits.maxBorrowMore;
+      default:
+        return '0';
     }
   };
 
   const handleRepay = async () => {
-    if (!connected || !currentLoan.hasLoan || !signer) return;
+    if (!connected || !currentLoan.hasLoan || !signer || currentLoan.isExpired) return;
+    
+    const amount = repayAmount || currentLoan.borrowed;
     
     setLoading(true);
     try {
       const contract = await getContract(signer);
+      const repayValue = parseEther(amount);
       
-      // Use the input amount or full borrowed amount
-      const amount = repayAmount ? parseEther(repayAmount) : parseEther(currentLoan.borrowed);
+      // Check if full repayment or partial
+      const borrowed = parseEther(currentLoan.borrowed);
       
-      const tx = await contract.repay({ value: amount });
-      await tx.wait();
+      if (repayValue >= borrowed) {
+        // Full repayment - use closePosition
+        const tx = await contract.closePosition({ value: borrowed });
+        await tx.wait();
+        alert('Loan fully repaid and position closed!');
+      } else {
+        // Partial repayment
+        const tx = await contract.repay({ value: repayValue });
+        await tx.wait();
+        alert('Partial repayment successful!');
+      }
       
       // Reset form and reload data
       setRepayAmount('');
       loadLoanData();
-      
-      console.log('Repay successful:', tx.hash);
-    } catch (error) {
+      loadUserBalances();
+    } catch (error: any) {
       console.error('Repay error:', error);
+      alert(`Repay failed: ${error.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleClosePosition = async () => {
-    if (!connected || !currentLoan.hasLoan || !signer) return;
+  const handleFlashClosePosition = async () => {
+    if (!connected || !currentLoan.hasLoan || !signer || currentLoan.isExpired) return;
     
     setLoading(true);
     try {
       const contract = await getContract(signer);
       
-      const tx = await contract.closePosition();
+      const tx = await contract.flashClosePosition();
       await tx.wait();
       
       loadLoanData();
-      console.log('Position closed:', tx.hash);
-    } catch (error) {
-      console.error('Close position error:', error);
+      loadUserBalances();
+      alert('Position closed using flash loan!');
+    } catch (error: any) {
+      console.error('Flash close error:', error);
+      alert(`Flash close failed: ${error.message || 'Unknown error'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleRemoveCollateral = async () => {
+    if (!connected || !currentLoan.hasLoan || !signer || !removeAmount || currentLoan.isExpired) return;
+    
+    setLoading(true);
+    try {
+      const contract = await getContract(signer);
+      const amount = parseEther(removeAmount);
+      
+      const tx = await contract.removeCollateral(amount);
+      await tx.wait();
+      
+      setRemoveAmount('');
+      loadLoanData();
+      loadUserBalances();
+      alert('Collateral removed successfully!');
+    } catch (error: any) {
+      console.error('Remove collateral error:', error);
+      alert(`Remove collateral failed: ${error.message || 'Unknown error'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleExtendLoan = async () => {
+    if (!connected || !currentLoan.hasLoan || !signer || currentLoan.isExpired) return;
+    
+    setLoading(true);
+    try {
+      const contract = await getContract(signer);
+      const days = BigInt(extendDays);
+      const fee = parseEther(extendFee);
+      
+      const tx = await contract.extendLoan(days, { value: fee });
+      await tx.wait();
+      
+      setExtendDays('7');
+      loadLoanData();
+      alert('Loan extended successfully!');
+    } catch (error: any) {
+      console.error('Extend loan error:', error);
+      alert(`Extend loan failed: ${error.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
@@ -168,11 +469,23 @@ export default function LoanManager() {
       className="bg-purple-900/20 backdrop-blur-sm rounded-2xl p-6 border border-purple-500/20"
     >
       <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-purple-400 to-purple-600 bg-clip-text text-transparent">
-        Leverage Manager
+        Loan Manager
       </h2>
 
       {connected ? (
         <>
+          {/* User Balances */}
+          <div className="mb-6 p-4 bg-purple-800/10 rounded-lg flex justify-between text-sm">
+            <div>
+              <span className="text-gray-400">Your LARRY: </span>
+              <span className="text-white font-medium">{parseFloat(userBalances.larryBalance).toFixed(2)}</span>
+            </div>
+            <div>
+              <span className="text-gray-400">Your ETH: </span>
+              <span className="text-white font-medium">{parseFloat(userBalances.ethBalance).toFixed(4)}</span>
+            </div>
+          </div>
+
           {/* Tab Switcher */}
           <div className="flex space-x-1 mb-6 bg-purple-800/20 p-1 rounded-lg">
             {['borrow', 'manage'].map((tab) => (
@@ -185,46 +498,165 @@ export default function LoanManager() {
                     : 'text-gray-400 hover:text-white hover:bg-purple-600/20'
                 }`}
               >
-                {tab === 'borrow' ? 'New Loan' : 'Manage Loan'}
+                {tab === 'borrow' ? 'Borrowing' : 'Manage Loan'}
               </button>
             ))}
           </div>
 
           {activeTab === 'borrow' ? (
             <div className="space-y-4">
+              {/* Borrow Type Selector */}
+              <div>
+                <label className="block text-gray-400 mb-2">Loan Type</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => setBorrowType('normal')}
+                    disabled={currentLoan.hasLoan && !currentLoan.isExpired}
+                    className={`px-3 py-2 rounded-lg font-medium transition-all ${
+                      borrowType === 'normal'
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-purple-800/20 text-gray-400 hover:bg-purple-800/40'
+                    } ${currentLoan.hasLoan && !currentLoan.isExpired ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    Normal
+                  </button>
+                  <button
+                    onClick={() => setBorrowType('leverage')}
+                    disabled={currentLoan.hasLoan && !currentLoan.isExpired}
+                    className={`px-3 py-2 rounded-lg font-medium transition-all ${
+                      borrowType === 'leverage'
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-purple-800/20 text-gray-400 hover:bg-purple-800/40'
+                    } ${currentLoan.hasLoan && !currentLoan.isExpired ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    Leverage
+                  </button>
+                  <button
+                    onClick={() => setBorrowType('more')}
+                    disabled={!currentLoan.hasLoan || currentLoan.isExpired}
+                    className={`px-3 py-2 rounded-lg font-medium transition-all ${
+                      borrowType === 'more'
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-purple-800/20 text-gray-400 hover:bg-purple-800/40'
+                    } ${(!currentLoan.hasLoan || currentLoan.isExpired) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    Borrow More
+                  </button>
+                </div>
+              </div>
+
+              {/* Loan Type Information */}
+              <div className="p-4 bg-purple-800/10 rounded-lg text-sm">
+                {borrowType === 'normal' && (
+                  <div>
+                    <h4 className="font-semibold text-purple-400 mb-2">Normal Borrow</h4>
+                    <ul className="space-y-1 text-gray-400">
+                      <li>• Requires LARRY collateral (you have: {parseFloat(userBalances.larryBalance).toFixed(2)} LARRY)</li>
+                      <li>• You receive 99% of borrowed amount minus interest</li>
+                      <li>• Interest rate: ~3.9% annually + 0.1% base fee</li>
+                      <li>• Maximum borrow: {parseFloat(getBorrowLimit()).toFixed(4)} ETH</li>
+                    </ul>
+                  </div>
+                )}
+                {borrowType === 'leverage' && (
+                  <div>
+                    <h4 className="font-semibold text-purple-400 mb-2">Leverage Borrow</h4>
+                    <ul className="space-y-1 text-gray-400">
+                      <li>• Requires ETH payment upfront (you have: {parseFloat(userBalances.ethBalance).toFixed(4)} ETH)</li>
+                      <li>• Creates leveraged position with automated collateral</li>
+                      <li>• Leverage fee: {parseFloat(userBalances.ethBalance) > 0 ? "Calculated based on amount and days" : "Insufficient ETH"}</li>
+                      <li>• Maximum leverage: {parseFloat(getBorrowLimit()).toFixed(4)} ETH</li>
+                    </ul>
+                  </div>
+                )}
+                {borrowType === 'more' && (
+                  <div>
+                    <h4 className="font-semibold text-purple-400 mb-2">Borrow More</h4>
+                    <ul className="space-y-1 text-gray-400">
+                      <li>• Add to existing loan (Current: {currentLoan.borrowed} ETH)</li>
+                      <li>• Uses remaining loan duration ({Math.max(0, Math.floor((Number(currentLoan.endDate) - Date.now() / 1000) / 86400))} days left)</li>
+                      <li>• May require additional collateral</li>
+                      <li>• Maximum additional: {parseFloat(getBorrowLimit()).toFixed(4)} ETH</li>
+                    </ul>
+                  </div>
+                )}
+              </div>
+
               {/* ETH Amount */}
               <div>
                 <label className="block text-gray-400 mb-2">
-                  ETH to Borrow
+                  ETH to {borrowType === 'more' ? 'Borrow More' : 'Borrow'}
+                  <span className="text-sm ml-2">
+                    (Max: {parseFloat(getBorrowLimit()).toFixed(4)} ETH)
+                  </span>
                 </label>
-                <input
-                  type="number"
-                  value={borrowAmount}
-                  onChange={(e) => setBorrowAmount(e.target.value)}
-                  placeholder="0.0"
-                  className="w-full px-4 py-3 bg-purple-800/20 border border-purple-500/30 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-400 transition-colors"
-                />
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={borrowAmount}
+                    onChange={(e) => setBorrowAmount(e.target.value)}
+                    placeholder="0.0"
+                    className="w-full px-4 py-3 bg-purple-800/20 border border-purple-500/30 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-400 transition-colors"
+                  />
+                  <button
+                    onClick={() => setBorrowAmount(getBorrowLimit())}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 px-3 py-1 bg-purple-600 hover:bg-purple-700 text-xs text-white rounded font-medium transition-colors"
+                  >
+                    MAX
+                  </button>
+                </div>
               </div>
 
-              {/* Days */}
-              <div>
-                <label className="block text-gray-400 mb-2">
-                  Loan Duration (Days)
-                </label>
-                <select
-                  value={borrowDays}
-                  onChange={(e) => setBorrowDays(e.target.value)}
-                  className="w-full px-4 py-3 bg-purple-800/20 border border-purple-500/30 rounded-lg text-white focus:outline-none focus:border-purple-400 transition-colors"
-                >
-                  <option value="1">1 Day</option>
-                  <option value="3">3 Days</option>
-                  <option value="7">7 Days</option>
-                  <option value="14">14 Days</option>
-                  <option value="30">30 Days</option>
-                  <option value="60">60 Days</option>
-                  <option value="90">90 Days</option>
-                </select>
-              </div>
+              {/* Days - only for normal and leverage */}
+              {(borrowType === 'normal' || borrowType === 'leverage') && (
+                <div>
+                  <label className="block text-gray-400 mb-2">
+                    Loan Duration (Days)
+                  </label>
+                  <select
+                    value={borrowDays}
+                    onChange={(e) => setBorrowDays(e.target.value)}
+                    className="w-full px-4 py-3 bg-purple-800/20 border border-purple-500/30 rounded-lg text-white focus:outline-none focus:border-purple-400 transition-colors"
+                  >
+                    <option value="1">1 Day</option>
+                    <option value="3">3 Days</option>
+                    <option value="7">7 Days</option>
+                    <option value="14">14 Days</option>
+                    <option value="30">30 Days</option>
+                    <option value="60">60 Days</option>
+                    <option value="90">90 Days</option>
+                  </select>
+                </div>
+              )}
+
+              {/* Current Loan Info for Borrow More */}
+              {borrowType === 'more' && currentLoan.hasLoan && (
+                <div className="p-4 bg-purple-800/10 rounded-lg space-y-2">
+                  <h4 className="text-sm font-semibold text-purple-400 mb-2">Current Loan Status</h4>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400">Borrowed</span>
+                    <span className="text-white">{currentLoan.borrowed} ETH</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400">Collateral</span>
+                    <span className="text-white">{currentLoan.collateral} LARRY</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400">Collateralization Ratio</span>
+                    <span className="text-white">
+                      {currentLoan.borrowed !== '0' ? 
+                        ((parseFloat(currentLoan.collateral) * 100) / parseFloat(currentLoan.borrowed)).toFixed(2) + '%' 
+                        : 'N/A'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400">Remaining Days</span>
+                    <span className="text-white">
+                      {Math.max(0, Math.floor((Number(currentLoan.endDate) - Date.now() / 1000) / 86400))}
+                    </span>
+                  </div>
+                </div>
+              )}
 
               {/* Preview */}
               {borrowAmount && (
@@ -233,30 +665,55 @@ export default function LoanManager() {
                   animate={{ opacity: 1 }}
                   className="p-4 bg-purple-800/10 rounded-lg space-y-2"
                 >
+                  <h4 className="text-sm font-semibold text-purple-400 mb-2">
+                    {borrowType === 'leverage' ? 'Leverage Details' : 'Loan Details'}
+                  </h4>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Required Collateral</span>
+                    <span className="text-gray-400">
+                      {borrowType === 'more' ? 'Additional Collateral' : 'Required Collateral'}
+                    </span>
                     <span className="text-white">
                       {borrowPreview.collateral} LARRY
                     </span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Interest Fee</span>
-                    <span className="text-yellow-400">
-                      {borrowPreview.interestFee} ETH
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Leverage Fee</span>
-                    <span className="text-yellow-400">
-                      {borrowPreview.leverageFee} ETH
-                    </span>
-                  </div>
+                  {borrowType === 'leverage' && (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">Leverage Fee</span>
+                        <span className="text-yellow-400">
+                          {borrowPreview.leverageFee} ETH
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">Total Payment</span>
+                        <span className="text-purple-400">
+                          {borrowPreview.totalPayment} ETH
+                        </span>
+                      </div>
+                    </>
+                  )}
+                  {(borrowType === 'normal' || borrowType === 'more') && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-400">Interest Fee</span>
+                      <span className="text-yellow-400">
+                        {borrowPreview.interestFee} ETH
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-sm font-bold">
-                    <span className="text-gray-400">Total Payment</span>
-                    <span className="text-purple-400">
-                      {(parseFloat(borrowAmount || '0') + parseFloat(borrowPreview.leverageFee)).toFixed(6)} ETH
+                    <span className="text-gray-400">You Receive</span>
+                    <span className="text-green-400">
+                      {borrowPreview.youReceive} ETH
                     </span>
                   </div>
+                  {borrowType === 'more' && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-400">New Total Borrowed</span>
+                      <span className="text-purple-400">
+                        {(parseFloat(currentLoan.borrowed) + parseFloat(borrowAmount)).toFixed(4)} ETH
+                      </span>
+                    </div>
+                  )}
                 </motion.div>
               )}
 
@@ -265,14 +722,21 @@ export default function LoanManager() {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={handleBorrow}
-                disabled={loading || !borrowAmount || currentLoan.hasLoan}
+                disabled={loading || !borrowAmount || parseFloat(borrowAmount) > parseFloat(getBorrowLimit())}
                 className={`w-full py-3 rounded-lg font-medium transition-all ${
-                  loading || !borrowAmount || currentLoan.hasLoan
+                  loading || !borrowAmount || parseFloat(borrowAmount) > parseFloat(getBorrowLimit())
                     ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                    : borrowType === 'leverage'
+                    ? 'bg-purple-600 hover:bg-purple-700 text-white'
                     : 'bg-green-600 hover:bg-green-700 text-white'
                 }`}
               >
-                {loading ? 'Processing...' : currentLoan.hasLoan ? 'Existing Loan Active' : 'Create Leverage Position'}
+                {loading ? 'Processing...' : 
+                  parseFloat(borrowAmount) > parseFloat(getBorrowLimit()) ? 'Exceeds Maximum' :
+                  borrowType === 'leverage' ? 'Create Leverage Position' :
+                  borrowType === 'more' ? 'Borrow More' :
+                  'Borrow'
+                }
               </motion.button>
             </div>
           ) : (
@@ -295,52 +759,139 @@ export default function LoanManager() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">End Date</span>
-                      <span className="text-white">
+                      <span className={currentLoan.isExpired ? 'text-red-400' : 'text-white'}>
                         {new Date(Number(currentLoan.endDate) * 1000).toLocaleDateString()}
+                        {currentLoan.isExpired && ' (EXPIRED)'}
                       </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Max Removable Collateral</span>
+                      <span className="text-white">{borrowLimits.maxRemoveCollateral} LARRY</span>
                     </div>
                   </div>
 
-                  {/* Repay Amount */}
-                  <div>
-                    <label className="block text-gray-400 mb-2">
-                      Repay Amount (ETH)
-                    </label>
-                    <input
-                      type="number"
-                      value={repayAmount}
-                      onChange={(e) => setRepayAmount(e.target.value)}
-                      placeholder={currentLoan.borrowed}
-                      className="w-full px-4 py-3 bg-purple-800/20 border border-purple-500/30 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-400 transition-colors"
-                    />
-                  </div>
+                  {currentLoan.isExpired ? (
+                    <div className="p-4 bg-red-900/20 border border-red-500/30 rounded-lg text-red-400">
+                      Your loan has expired. It may be liquidated. You cannot repay or manage it anymore.
+                    </div>
+                  ) : (
+                    <>
+                      {/* Repay Section */}
+                      <div className="border-t border-purple-500/20 pt-4">
+                        <h3 className="text-lg font-semibold mb-3 text-purple-400">Repay Loan</h3>
+                        <div className="mb-3">
+                          <label className="block text-gray-400 mb-2">
+                            Repay Amount (ETH)
+                          </label>
+                          <input
+                            type="number"
+                            value={repayAmount}
+                            onChange={(e) => setRepayAmount(e.target.value)}
+                            placeholder={currentLoan.borrowed}
+                            className="w-full px-4 py-3 bg-purple-800/20 border border-purple-500/30 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-400 transition-colors"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Leave empty to repay full amount and close position
+                          </p>
+                        </div>
+                        <motion.button
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={handleRepay}
+                          disabled={loading}
+                          className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                        >
+                          {loading ? 'Processing...' : 'Repay Loan'}
+                        </motion.button>
+                      </div>
 
-                  {/* Action Buttons */}
-                  <div className="space-y-3">
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={handleRepay}
-                      disabled={loading}
-                      className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-                    >
-                      {loading ? 'Processing...' : 'Repay Loan'}
-                    </motion.button>
-                    
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={handleClosePosition}
-                      disabled={loading}
-                      className="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
-                    >
-                      {loading ? 'Processing...' : 'Close Position'}
-                    </motion.button>
-                  </div>
+                      {/* Flash Close Position */}
+                      <div className="border-t border-purple-500/20 pt-4">
+                        <h3 className="text-lg font-semibold mb-3 text-purple-400">Flash Close</h3>
+                        <p className="text-sm text-gray-400 mb-3">
+                          Close your position without external ETH. Uses your collateral to repay the loan.
+                        </p>
+                        <motion.button
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={handleFlashClosePosition}
+                          disabled={loading}
+                          className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
+                        >
+                          {loading ? 'Processing...' : 'Flash Close Position'}
+                        </motion.button>
+                      </div>
+
+                      {/* Remove Collateral */}
+                      <div className="border-t border-purple-500/20 pt-4">
+                        <h3 className="text-lg font-semibold mb-3 text-purple-400">Remove Collateral</h3>
+                        <div className="mb-3">
+                          <label className="block text-gray-400 mb-2">
+                            Amount to Remove (LARRY)
+                            <span className="text-sm ml-2">
+                              (Max: {borrowLimits.maxRemoveCollateral} LARRY)
+                            </span>
+                          </label>
+                          <input
+                            type="number"
+                            value={removeAmount}
+                            onChange={(e) => setRemoveAmount(e.target.value)}
+                            placeholder="0.0"
+                            className="w-full px-4 py-3 bg-purple-800/20 border border-purple-500/30 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-400 transition-colors"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Must maintain 99% collateralization ratio
+                          </p>
+                        </div>
+                        <motion.button
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={handleRemoveCollateral}
+                          disabled={loading || !removeAmount || parseFloat(removeAmount) > parseFloat(borrowLimits.maxRemoveCollateral)}
+                          className="w-full py-3 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-medium transition-colors"
+                        >
+                          {loading ? 'Processing...' : 'Remove Collateral'}
+                        </motion.button>
+                      </div>
+
+                      {/* Extend Loan */}
+                      <div className="border-t border-purple-500/20 pt-4">
+                        <h3 className="text-lg font-semibold mb-3 text-purple-400">Extend Loan</h3>
+                        <div className="mb-3">
+                          <label className="block text-gray-400 mb-2">
+                            Additional Days
+                          </label>
+                          <select
+                            value={extendDays}
+                            onChange={(e) => setExtendDays(e.target.value)}
+                            className="w-full px-4 py-3 bg-purple-800/20 border border-purple-500/30 rounded-lg text-white focus:outline-none focus:border-purple-400 transition-colors"
+                          >
+                            <option value="1">1 Day</option>
+                            <option value="3">3 Days</option>
+                            <option value="7">7 Days</option>
+                            <option value="14">14 Days</option>
+                            <option value="30">30 Days</option>
+                          </select>
+                          <p className="text-sm text-gray-400 mt-2">
+                            Extension fee: {extendFee} ETH
+                          </p>
+                        </div>
+                        <motion.button
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={handleExtendLoan}
+                          disabled={loading}
+                          className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
+                        >
+                          {loading ? 'Processing...' : 'Extend Loan'}
+                        </motion.button>
+                      </div>
+                    </>
+                  )}
                 </>
               ) : (
                 <div className="text-center py-8 text-gray-400">
-                  No active loans. Create a new leverage position in the "New Loan" tab.
+                  No active loans. Create a new loan in the "Borrowing" tab.
                 </div>
               )}
             </div>
