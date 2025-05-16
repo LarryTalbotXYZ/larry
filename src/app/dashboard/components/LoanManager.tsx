@@ -965,28 +965,79 @@ export default function LoanManager() {
                         <h3 className="text-lg font-semibold mb-3 text-purple-400">Repay Loan</h3>
                         <div className="mb-3">
                           <label className="block text-gray-400 mb-2">
-                            Repay Amount (ETH)
+                            Repay Amount (ETH) 
+                            <span className="text-sm ml-2">
+                              Balance: {parseFloat(userBalances.ethBalance).toFixed(6)} ETH
+                            </span>
                           </label>
-                          <input
-                            type="number"
-                            value={repayAmount}
-                            onChange={(e) => setRepayAmount(e.target.value)}
-                            placeholder={currentLoan.borrowed}
-                            className="w-full px-4 py-3 bg-purple-800/20 border border-purple-500/30 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-400 transition-colors"
-                          />
+                          <div className="relative">
+                            <input
+                              type="number"
+                              value={repayAmount}
+                              onChange={(e) => setRepayAmount(e.target.value)}
+                              placeholder={currentLoan.borrowed}
+                              className="w-full px-4 py-3 bg-purple-800/20 border border-purple-500/30 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-400 transition-colors pr-24"
+                            />
+                            <button
+                              onClick={() => {
+                                if (parseFloat(userBalances.ethBalance) > parseFloat(currentLoan.borrowed)) {
+                                  // If balance exceeds loan, set to exact loan amount
+                                  setRepayAmount(currentLoan.borrowed);
+                                } else {
+                                  // Otherwise use all available balance
+                                  setRepayAmount(userBalances.ethBalance);
+                                }
+                              }}
+                              className="absolute right-2 top-1/2 transform -translate-y-1/2 px-3 py-1 bg-purple-600 hover:bg-purple-700 text-xs text-white rounded font-medium transition-colors"
+                            >
+                              {parseFloat(userBalances.ethBalance) > parseFloat(currentLoan.borrowed) ? 'EXACT' : 'USE ALL'}
+                            </button>
+                          </div>
                           <p className="text-xs text-gray-500 mt-1">
-                            Leave empty to repay full amount and close position
+                            Leave empty to repay full loan ({currentLoan.borrowed} ETH) and close position
                           </p>
                         </div>
-                        <motion.button
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                          onClick={handleRepay}
-                          disabled={loading}
-                          className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-                        >
-                          {loading ? 'Processing...' : 'Repay Loan'}
-                        </motion.button>
+                        <div className="grid grid-cols-2 gap-3">
+                          <motion.button
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={() => {
+                              setRepayAmount('');
+                              handleRepay();
+                            }}
+                            disabled={loading}
+                            className="py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                          >
+                            {loading ? 'Processing...' : `Repay Full (${currentLoan.borrowed} ETH)`}
+                          </motion.button>
+                          <motion.button
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={async () => {
+                              if (parseFloat(userBalances.ethBalance) < parseFloat(currentLoan.borrowed)) {
+                                // If balance is less than loan, use all balance
+                                setRepayAmount(userBalances.ethBalance);
+                                setTimeout(() => handleRepay(), 100);
+                              } else {
+                                // If balance is more than loan, just repay the exact loan amount
+                                setRepayAmount(currentLoan.borrowed);
+                                setTimeout(() => handleRepay(), 100);
+                              }
+                            }}
+                            disabled={loading || parseFloat(userBalances.ethBalance) === 0}
+                            className={`py-3 rounded-lg font-medium transition-all ${
+                              loading || parseFloat(userBalances.ethBalance) === 0
+                                ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                                : 'bg-green-600 hover:bg-green-700 text-white'
+                            }`}
+                          >
+                            {loading ? 'Processing...' : 
+                              parseFloat(userBalances.ethBalance) < parseFloat(currentLoan.borrowed) 
+                                ? `Repay ${parseFloat(userBalances.ethBalance).toFixed(4)} ETH`
+                                : `Repay Exact (${currentLoan.borrowed} ETH)`
+                            }
+                          </motion.button>
+                        </div>
                       </div>
 
                       {/* Flash Close Position */}
