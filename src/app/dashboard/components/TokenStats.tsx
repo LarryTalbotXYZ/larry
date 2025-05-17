@@ -136,9 +136,19 @@ export default function TokenStats({ detailed = false }: TokenStatsProps) {
             >
               <span className="text-gray-400">{item.label}</span>
               <span className="text-white font-medium">
-                {parseFloat(item.value).toLocaleString(undefined, {
-                  maximumFractionDigits: 4,
-                })}{' '}
+                {item.label === 'Price' 
+                  ? parseFloat(item.value).toLocaleString(undefined, {
+                      minimumFractionDigits: 10,
+                      maximumFractionDigits: 10,
+                    }) 
+                  : item.label === 'Your Balance'
+                    ? parseFloat(item.value).toLocaleString(undefined, {
+                        minimumFractionDigits: 4,
+                        maximumFractionDigits: 6,
+                      })
+                    : parseFloat(item.value).toLocaleString(undefined, {
+                        maximumFractionDigits: 4,
+                      })}{' '}
                 <span className="text-purple-400">{item.suffix}</span>
               </span>
             </motion.div>
