@@ -272,9 +272,9 @@ export default function BuySell() {
       {connected ? (
         <>
           {/* Chain Warning */}
-          {chainId !== '0x1' && (
+          {chainId !== '0x2105' && (
             <div className="mb-4 p-2 sm:p-3 bg-yellow-900/20 border border-yellow-500/30 rounded-lg text-yellow-400 text-xs sm:text-sm">
-              ⚠️ Please switch to Ethereum Mainnet network to trade
+              ⚠️ Please switch to Base network to trade
             </div>
           )}
 

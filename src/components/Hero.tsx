@@ -136,7 +136,7 @@ export default function Hero() {
             </Link>
             
             <motion.a
-              href="https://etherscan.io/token/0x888d81e3ea5E8362B5f69188CBCF34Fa8da4b888"
+              href="https://basescan.org/token/0x888d81e3ea5E8362B5f69188CBCF34Fa8da4b888"
               target="_blank"
               rel="noopener noreferrer"
               variants={buttonVariants}
