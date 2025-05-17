@@ -37,7 +37,7 @@ export default function Header() {
               Strategies
             </Link>
             <a 
-              href="https://basescan.org/address/0x8F85710fEf0f3c024B9E21B98d8D7F4D3f4d96aE" 
+              href="https://etherscan.io/token/0x888d81e3ea5E8362B5f69188CBCF34Fa8da4b888" 
               target="_blank" 
               rel="noopener noreferrer" 
               className="text-gray-300 hover:text-purple-400 transition-colors"
@@ -93,7 +93,7 @@ export default function Header() {
                 Strategies
               </Link>
               <a 
-                href="https://basescan.org/address/0x8F85710fEf0f3c024B9E21B98d8D7F4D3f4d96aE" 
+                href="https://etherscan.io/token/0x888d81e3ea5E8362B5f69188CBCF34Fa8da4b888" 
                 target="_blank" 
                 rel="noopener noreferrer" 
                 className="text-gray-300 hover:text-purple-400 transition-colors"

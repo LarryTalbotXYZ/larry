@@ -177,9 +177,9 @@ export default function BuySell() {
   const handleTransaction = async () => {
     if (!connected || !amount || !signer) return;
     
-    // Check if on Base Sepolia
-    if (chainId !== '0x14a34') {
-      alert('Please switch to Base Sepolia network');
+    // Check if on Ethereum Mainnet
+    if (chainId !== '0x1') {
+      alert('Please switch to Ethereum Mainnet network');
       return;
     }
     
@@ -272,9 +272,9 @@ export default function BuySell() {
       {connected ? (
         <>
           {/* Chain Warning */}
-          {chainId !== '0x14a34' && (
+          {chainId !== '0x1' && (
             <div className="mb-4 p-3 bg-yellow-900/20 border border-yellow-500/30 rounded-lg text-yellow-400 text-sm">
-              ⚠️ Please switch to Base Sepolia network to trade
+              ⚠️ Please switch to Ethereum Mainnet network to trade
             </div>
           )}
 
@@ -342,9 +342,9 @@ export default function BuySell() {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleTransaction}
-            disabled={loading || !amount || chainId !== '0x14a34'}
+            disabled={loading || !amount || chainId !== '0x1'}
             className={`w-full py-3 rounded-lg font-medium transition-all ${
-              loading || !amount || chainId !== '0x14a34'
+              loading || !amount || chainId !== '0x1'
                 ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
                 : activeTab === 'buy'
                 ? 'bg-green-600 hover:bg-green-700 text-white'

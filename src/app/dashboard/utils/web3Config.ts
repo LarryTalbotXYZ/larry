@@ -4,8 +4,8 @@ import contractData from './larryContract.json';
 export const CONTRACT_ADDRESS = contractData.address;
 export const CONTRACT_ABI = contractData.abi;
 
-// Base Sepolia RPC URL
-export const RPC_URL = 'https://sepolia.base.org';
+// Ethereum Mainnet RPC URL
+export const RPC_URL = 'https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161';
 
 export const getProvider = () => {
   if (typeof window !== 'undefined' && (window as any).ethereum) {

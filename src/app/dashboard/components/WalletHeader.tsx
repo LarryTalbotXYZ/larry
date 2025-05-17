@@ -7,7 +7,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 export default function WalletHeader() {
-  const { connected, address, balance, chainId, connect, disconnect, switchToBaseSepolia } = useWallet();
+  const { connected, address, balance, chainId, connect, disconnect, switchToEthMainnet } = useWallet();
   const [moonPhase, setMoonPhase] = useState(0);
   const moonPhases = ['🌑', '🌒', '🌓', '🌔', '🌕', '🌖', '🌗', '🌘'];
 
@@ -51,14 +51,14 @@ export default function WalletHeader() {
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    chainId === '0x14a34'
+                    chainId === '0x1'
                       ? 'bg-green-900/20 text-green-400 border border-green-500/30'
                       : 'bg-red-900/20 text-red-400 border border-red-500/30 cursor-pointer'
                   }`}
-                  onClick={chainId !== '0x14a34' ? switchToBaseSepolia : undefined}
+                  onClick={chainId !== '0x1' ? switchToEthMainnet : undefined}
                 >
-                  {chainId === '0x14a34' ? (
-                    'Base Sepolia'
+                  {chainId === '0x1' ? (
+                    'Ethereum Mainnet'
                   ) : (
                     <span className="flex items-center">
                       Wrong Network

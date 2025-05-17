@@ -4,18 +4,18 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import { CONTRACT_ADDRESS, getProvider } from '../utils/web3Config';
 
-// Base Sepolia chain info
-const BASE_SEPOLIA_CHAIN_ID = '0x14a34'; // 84532
-const BASE_SEPOLIA_CONFIG = {
-  chainId: BASE_SEPOLIA_CHAIN_ID,
-  chainName: 'Base Sepolia',
+// Ethereum Mainnet chain info
+const ETH_MAINNET_CHAIN_ID = '0x1'; // 1
+const ETH_MAINNET_CONFIG = {
+  chainId: ETH_MAINNET_CHAIN_ID,
+  chainName: 'Ethereum Mainnet',
   nativeCurrency: {
     name: 'Ethereum',
     symbol: 'ETH',
     decimals: 18,
   },
-  rpcUrls: ['https://sepolia.base.org'],
-  blockExplorerUrls: ['https://sepolia.basescan.org/'],
+  rpcUrls: ['https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161'],
+  blockExplorerUrls: ['https://etherscan.io/'],
 };
 
 interface WalletContextType {
@@ -27,7 +27,7 @@ interface WalletContextType {
   signer: ethers.Signer | null;
   connect: () => Promise<void>;
   disconnect: () => void;
-  switchToBaseSepolia: () => Promise<void>;
+  switchToEthMainnet: () => Promise<void>;
 }
 
 const WalletContext = createContext<WalletContextType>({
@@ -39,7 +39,7 @@ const WalletContext = createContext<WalletContextType>({
   signer: null,
   connect: async () => {},
   disconnect: () => {},
-  switchToBaseSepolia: async () => {},
+  switchToEthMainnet: async () => {},
 });
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
@@ -136,9 +136,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       const balance = await provider.getBalance(accounts[0]);
       setBalance(ethers.formatEther(balance));
       
-      // Switch to Base Sepolia if not on it
-      if (network.chainId !== 84532n) {
-        await switchToBaseSepolia();
+      // Switch to ETH Mainnet if not on it
+      if (network.chainId !== 1n) {
+        await switchToEthMainnet();
       }
     } catch (error: any) {
       console.error('Connection error:', error);
@@ -159,16 +159,16 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     setSigner(null);
   };
 
-  const switchToBaseSepolia = async () => {
+  const switchToEthMainnet = async () => {
     if (!provider) return;
 
     try {
       const ethereum = (window as any).ethereum;
       
-      // Try to switch to Base Sepolia
+      // Try to switch to Ethereum Mainnet
       await ethereum.request({
         method: 'wallet_switchEthereumChain',
-        params: [{ chainId: BASE_SEPOLIA_CHAIN_ID }],
+        params: [{ chainId: ETH_MAINNET_CHAIN_ID }],
       });
     } catch (error: any) {
       // If the chain doesn't exist, add it
@@ -176,15 +176,15 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         try {
           await (window as any).ethereum.request({
             method: 'wallet_addEthereumChain',
-            params: [BASE_SEPOLIA_CONFIG],
+            params: [ETH_MAINNET_CONFIG],
           });
         } catch (addError) {
-          console.error('Error adding Base Sepolia:', addError);
-          alert('Could not add Base Sepolia network to wallet');
+          console.error('Error adding Ethereum Mainnet:', addError);
+          alert('Could not add Ethereum Mainnet network to wallet');
         }
       } else {
-        console.error('Error switching to Base Sepolia:', error);
-        alert('Could not switch to Base Sepolia network');
+        console.error('Error switching to Ethereum Mainnet:', error);
+        alert('Could not switch to Ethereum Mainnet network');
       }
     }
   };
@@ -200,7 +200,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         signer,
         connect,
         disconnect,
-        switchToBaseSepolia,
+        switchToEthMainnet,
       }}
     >
       {children}
