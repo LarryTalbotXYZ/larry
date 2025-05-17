@@ -7,7 +7,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 export default function WalletHeader() {
-  const { connected, address, balance, chainId, connect, disconnect, switchToEthMainnet } = useWallet();
+  const { connected, address, balance, chainId, connect, disconnect, switchToBase } = useWallet();
   const [moonPhase, setMoonPhase] = useState(0);
   const moonPhases = ['🌑', '🌒', '🌓', '🌔', '🌕', '🌖', '🌗', '🌘'];
 
@@ -52,11 +52,11 @@ export default function WalletHeader() {
               <>
                 {/* Mobile Layout - Compact */}
                 <div className="flex items-center gap-1 sm:hidden">
-                  {chainId === '0x1' ? (
+                  {chainId === '0x2105' ? (
                     <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                   ) : (
                     <motion.button
-                      onClick={switchToEthMainnet}
+                      onClick={switchToBase}
                       className="px-2 py-1 bg-red-900/20 text-red-400 border border-red-500/30 rounded text-xs"
                     >
                       Wrong Net
@@ -78,13 +78,13 @@ export default function WalletHeader() {
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     className={`px-3 py-1 rounded-full text-sm font-medium ${
-                      chainId === '0x1'
+                      chainId === '0x2105'
                         ? 'bg-green-900/20 text-green-400 border border-green-500/30'
                         : 'bg-red-900/20 text-red-400 border border-red-500/30 cursor-pointer'
                     }`}
-                    onClick={chainId !== '0x1' ? switchToEthMainnet : undefined}
+                    onClick={chainId !== '0x2105' ? switchToBase : undefined}
                   >
-                    {chainId === '0x1' ? 'Ethereum Mainnet' : 'Wrong Network'}
+                    {chainId === '0x2105' ? 'Base' : 'Wrong Network'}
                   </motion.div>
 
                   {/* Balance */}

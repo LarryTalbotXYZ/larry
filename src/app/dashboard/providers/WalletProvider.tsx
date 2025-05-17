@@ -4,23 +4,23 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import { CONTRACT_ADDRESS, getProvider } from '../utils/web3Config';
 
-// Ethereum Mainnet chain info
-const ETH_MAINNET_CHAIN_ID = '0x1'; // 1
-const ETH_MAINNET_CONFIG = {
-  chainId: ETH_MAINNET_CHAIN_ID,
-  chainName: 'Ethereum Mainnet',
+// Base network chain info
+const BASE_CHAIN_ID = '0x2105'; // 8453
+const BASE_CONFIG = {
+  chainId: BASE_CHAIN_ID,
+  chainName: 'Base',
   nativeCurrency: {
     name: 'Ethereum',
     symbol: 'ETH',
     decimals: 18,
   },
   rpcUrls: [
-    'https://cloudflare-eth.com',
-    'https://eth.llamarpc.com',
-    'https://rpc.flashbots.net',
-    'https://ethereum-rpc.publicnode.com'
+    'https://mainnet.base.org',
+    'https://base.gateway.tenderly.co',
+    'https://base-rpc.publicnode.com',
+    'https://base.llamarpc.com'
   ],
-  blockExplorerUrls: ['https://etherscan.io/'],
+  blockExplorerUrls: ['https://basescan.org/'],
 };
 
 interface WalletContextType {
@@ -32,7 +32,7 @@ interface WalletContextType {
   signer: ethers.Signer | null;
   connect: () => Promise<void>;
   disconnect: () => void;
-  switchToEthMainnet: () => Promise<void>;
+  switchToBase: () => Promise<void>;
 }
 
 const WalletContext = createContext<WalletContextType>({
@@ -44,7 +44,7 @@ const WalletContext = createContext<WalletContextType>({
   signer: null,
   connect: async () => {},
   disconnect: () => {},
-  switchToEthMainnet: async () => {},
+  switchToBase: async () => {},
 });
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
@@ -147,9 +147,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         setBalance('0');
       }
       
-      // Switch to ETH Mainnet if not on it
-      if (network.chainId !== 1n) {
-        await switchToEthMainnet();
+      // Switch to Base if not on it
+      if (network.chainId !== 8453n) {
+        await switchToBase();
       }
     } catch (error: any) {
       console.error('Connection error:', error);
@@ -174,16 +174,16 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     setSigner(null);
   };
 
-  const switchToEthMainnet = async () => {
+  const switchToBase = async () => {
     if (!provider) return;
 
     try {
       const ethereum = (window as any).ethereum;
       
-      // Try to switch to Ethereum Mainnet
+      // Try to switch to Base
       await ethereum.request({
         method: 'wallet_switchEthereumChain',
-        params: [{ chainId: ETH_MAINNET_CHAIN_ID }],
+        params: [{ chainId: BASE_CHAIN_ID }],
       });
     } catch (error: any) {
       // If the chain doesn't exist, add it
@@ -191,15 +191,15 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         try {
           await (window as any).ethereum.request({
             method: 'wallet_addEthereumChain',
-            params: [ETH_MAINNET_CONFIG],
+            params: [BASE_CONFIG],
           });
         } catch (addError) {
-          console.error('Error adding Ethereum Mainnet:', addError);
-          alert('Could not add Ethereum Mainnet network to wallet');
+          console.error('Error adding Base network:', addError);
+          alert('Could not add Base network to wallet');
         }
       } else {
-        console.error('Error switching to Ethereum Mainnet:', error);
-        alert('Could not switch to Ethereum Mainnet network');
+        console.error('Error switching to Base network:', error);
+        alert('Could not switch to Base network');
       }
     }
   };
@@ -215,7 +215,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         signer,
         connect,
         disconnect,
-        switchToEthMainnet,
+        switchToBase,
       }}
     >
       {children}

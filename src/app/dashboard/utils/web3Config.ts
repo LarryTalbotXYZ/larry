@@ -4,17 +4,17 @@ import contractData from './larryContract.json';
 export const CONTRACT_ADDRESS = contractData.address;
 export const CONTRACT_ABI = contractData.abi;
 
-// Ethereum Mainnet RPC URLs - only public endpoints that don't require API keys
+// Base network RPC URLs - only public endpoints that don't require API keys
 const RPC_URLS = [
-  'https://eth.llamarpc.com',
-  'https://rpc.flashbots.net',
-  'https://ethereum-rpc.publicnode.com',
-  'https://cloudflare-eth.com',
-  'https://eth-mainnet.public.blastapi.io',
-  'https://api.zmok.io/mainnet/oaen6dy8ff6hju9k',
-  'https://uk.rpc.blxrbdn.com',
-  'https://virginia.rpc.blxrbdn.com',
-  'https://singapore.rpc.blxrbdn.com'
+  'https://mainnet.base.org',
+  'https://base.gateway.tenderly.co',
+  'https://base-rpc.publicnode.com',
+  'https://base.llamarpc.com',
+  'https://1rpc.io/base',
+  'https://rpc.ankr.com/base',
+  'https://base.blockpi.network/v1/rpc/public',
+  'https://base.drpc.org',
+  'https://endpoints.omniatech.io/v1/base/mainnet/public'
 ];
 
 export const getProvider = () => {
@@ -48,7 +48,7 @@ export const getContract = async (signer?: ethers.Signer) => {
   } catch (e) {
     console.error('Failed to get provider, using fallback');
     // Use a known good public RPC as fallback
-    provider = new ethers.JsonRpcProvider('https://cloudflare-eth.com');
+    provider = new ethers.JsonRpcProvider('https://mainnet.base.org');
   }
   
   if (!contractSigner && typeof window !== 'undefined' && (window as any).ethereum) {
