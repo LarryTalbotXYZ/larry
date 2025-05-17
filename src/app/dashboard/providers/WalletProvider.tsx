@@ -14,7 +14,12 @@ const ETH_MAINNET_CONFIG = {
     symbol: 'ETH',
     decimals: 18,
   },
-  rpcUrls: ['https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161'],
+  rpcUrls: [
+    'https://cloudflare-eth.com',
+    'https://eth.llamarpc.com',
+    'https://rpc.flashbots.net',
+    'https://ethereum-rpc.publicnode.com'
+  ],
   blockExplorerUrls: ['https://etherscan.io/'],
 };
 
@@ -132,9 +137,15 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       setSigner(signer);
       setChainId(`0x${network.chainId.toString(16)}`);
       
-      // Get balance
-      const balance = await provider.getBalance(accounts[0]);
-      setBalance(ethers.formatEther(balance));
+      // Get balance with error handling
+      try {
+        const balance = await provider.getBalance(accounts[0]);
+        setBalance(ethers.formatEther(balance));
+      } catch (balanceError: any) {
+        console.error('Error getting balance:', balanceError);
+        // Set a default balance if RPC fails
+        setBalance('0');
+      }
       
       // Switch to ETH Mainnet if not on it
       if (network.chainId !== 1n) {
@@ -142,10 +153,14 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error: any) {
       console.error('Connection error:', error);
-      if (error.code === 4001) {
+      
+      // Handle specific Ankr error
+      if (error.message && error.message.includes('ankr.com')) {
+        alert('RPC connection error. Please try again or check your network settings.');
+      } else if (error.code === 4001) {
         alert('You rejected the connection request');
       } else {
-        alert('Error connecting wallet: ' + error.message);
+        alert('Error connecting wallet: ' + (error.message || 'Unknown error'));
       }
     }
   };

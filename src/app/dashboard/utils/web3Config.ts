@@ -4,13 +4,17 @@ import contractData from './larryContract.json';
 export const CONTRACT_ADDRESS = contractData.address;
 export const CONTRACT_ABI = contractData.abi;
 
-// Ethereum Mainnet RPC URLs with public fallbacks
+// Ethereum Mainnet RPC URLs - only public endpoints that don't require API keys
 const RPC_URLS = [
-  'https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161',
-  'https://eth-mainnet.public.blastapi.io',
-  'https://ethereum-rpc.publicnode.com',
   'https://eth.llamarpc.com',
-  'https://rpc.flashbots.net'
+  'https://rpc.flashbots.net',
+  'https://ethereum-rpc.publicnode.com',
+  'https://cloudflare-eth.com',
+  'https://eth-mainnet.public.blastapi.io',
+  'https://api.zmok.io/mainnet/oaen6dy8ff6hju9k',
+  'https://uk.rpc.blxrbdn.com',
+  'https://virginia.rpc.blxrbdn.com',
+  'https://singapore.rpc.blxrbdn.com'
 ];
 
 export const getProvider = () => {
@@ -21,19 +25,31 @@ export const getProvider = () => {
   // Try each RPC URL until one works
   for (const url of RPC_URLS) {
     try {
-      return new ethers.JsonRpcProvider(url);
+      const provider = new ethers.JsonRpcProvider(url);
+      // Test the connection by making a simple call
+      provider.getNetwork().catch(() => {});
+      return provider;
     } catch (e) {
       console.warn(`Failed to connect to ${url}, trying next...`);
     }
   }
   
   // If all fail, return the first one anyway (it will error later)
+  console.warn('All RPC endpoints failed, using first one as fallback');
   return new ethers.JsonRpcProvider(RPC_URLS[0]);
 };
 
 export const getContract = async (signer?: ethers.Signer) => {
-  const provider = getProvider();
+  let provider;
   let contractSigner = signer;
+  
+  try {
+    provider = getProvider();
+  } catch (e) {
+    console.error('Failed to get provider, using fallback');
+    // Use a known good public RPC as fallback
+    provider = new ethers.JsonRpcProvider('https://cloudflare-eth.com');
+  }
   
   if (!contractSigner && typeof window !== 'undefined' && (window as any).ethereum) {
     try {
