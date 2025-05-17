@@ -177,9 +177,9 @@ export default function BuySell() {
   const handleTransaction = async () => {
     if (!connected || !amount || !signer) return;
     
-    // Check if on Ethereum Mainnet
-    if (chainId !== '0x1') {
-      alert('Please switch to Ethereum Mainnet network');
+    // Check if on Base
+    if (chainId !== '0x2105') {
+      alert('Please switch to Base network');
       return;
     }
     
@@ -330,7 +330,7 @@ export default function BuySell() {
             </div>
             <div className="flex justify-between text-xs sm:text-sm">
               <span className="text-gray-400">Token price</span>
-              <span className="text-purple-400">{parseFloat(preview.tokenPrice).toFixed(6)} ETH</span>
+              <span className="text-purple-400">{parseFloat(preview.tokenPrice).toFixed(6)} ETH (Base)</span>
             </div>
             <div className="text-[10px] sm:text-xs text-gray-500 italic mt-2">
               *Final amount may vary slightly due to price movements
@@ -342,9 +342,9 @@ export default function BuySell() {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleTransaction}
-            disabled={loading || !amount || chainId !== '0x1'}
+            disabled={loading || !amount || parseFloat(amount) <= 0 || chainId !== '0x2105'}
             className={`w-full py-2.5 sm:py-3 rounded-lg font-medium transition-all text-sm sm:text-base ${
-              loading || !amount || chainId !== '0x1'
+              loading || !amount || parseFloat(amount) <= 0 || chainId !== '0x2105'
                 ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
                 : activeTab === 'buy'
                 ? 'bg-green-600 hover:bg-green-700 text-white'

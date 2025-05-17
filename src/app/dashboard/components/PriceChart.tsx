@@ -148,7 +148,7 @@ export default function PriceChart() {
             {parseFloat(currentPrice).toLocaleString(undefined, {
               minimumFractionDigits: 7,
               maximumFractionDigits: 10
-            })} ETH
+            })} ETH (Base)
           </div>
           <div className={`text-xs sm:text-sm font-medium text-green-400`}>
             +{priceChange}%
@@ -260,7 +260,7 @@ export default function PriceChart() {
       
       {/* Volume indicator */}
       <div className="mt-4 text-sm text-gray-400">
-        24h Volume: 2.85 ETH
+        24h Volume: 2.85 ETH (Base)
       </div>
     </motion.div>
   );
