@@ -109,9 +109,9 @@ export default function TokenStats({ detailed = false }: TokenStatsProps) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-purple-900/20 backdrop-blur-sm rounded-2xl p-6 border border-purple-500/20"
+      className="bg-purple-900/20 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-purple-500/20"
     >
-      <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-purple-400 to-purple-600 bg-clip-text text-transparent">
+      <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 bg-gradient-to-r from-purple-400 to-purple-600 bg-clip-text text-transparent">
         Token Statistics
       </h2>
       
@@ -132,13 +132,13 @@ export default function TokenStats({ detailed = false }: TokenStatsProps) {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: index * 0.05 }}
-              className="flex justify-between items-center"
+              className="flex justify-between items-center text-sm sm:text-base"
             >
               <span className="text-gray-400">{item.label}</span>
-              <span className="text-white font-medium">
+              <span className="text-white font-medium text-right">
                 {item.label === 'Price' 
                   ? parseFloat(item.value).toLocaleString(undefined, {
-                      minimumFractionDigits: 10,
+                      minimumFractionDigits: 7,
                       maximumFractionDigits: 10,
                     }) 
                   : item.label === 'Your Balance'
@@ -149,7 +149,7 @@ export default function TokenStats({ detailed = false }: TokenStatsProps) {
                     : parseFloat(item.value).toLocaleString(undefined, {
                         maximumFractionDigits: 4,
                       })}{' '}
-                <span className="text-purple-400">{item.suffix}</span>
+                <span className="text-purple-400 text-xs sm:text-sm">{item.suffix}</span>
               </span>
             </motion.div>
           ))}

@@ -586,39 +586,41 @@ export default function LoanManager() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-purple-900/20 backdrop-blur-sm rounded-2xl p-6 border border-purple-500/20"
+      className="bg-purple-900/20 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-purple-500/20"
     >
-      <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-purple-400 to-purple-600 bg-clip-text text-transparent">
+      <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 bg-gradient-to-r from-purple-400 to-purple-600 bg-clip-text text-transparent">
         Loan Manager
       </h2>
 
       {connected ? (
         <>
           {/* User Balances */}
-          <div className="mb-6 p-4 bg-purple-800/10 rounded-lg flex justify-between text-sm">
-            <div>
-              <span className="text-gray-400">Your LARRY: </span>
-              <span className="text-white font-medium">{parseFloat(userBalances.larryBalance).toFixed(2)}</span>
-            </div>
-            <div>
-              <span className="text-gray-400">Your ETH: </span>
-              <span className="text-white font-medium">{parseFloat(userBalances.ethBalance).toFixed(4)}</span>
+          <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-purple-800/10 rounded-lg">
+            <div className="flex flex-col sm:flex-row sm:justify-between space-y-1 sm:space-y-0 text-xs sm:text-sm">
+              <div>
+                <span className="text-gray-400">Your LARRY: </span>
+                <span className="text-white font-medium">{parseFloat(userBalances.larryBalance).toFixed(2)}</span>
+              </div>
+              <div>
+                <span className="text-gray-400">Your ETH: </span>
+                <span className="text-white font-medium">{parseFloat(userBalances.ethBalance).toFixed(4)}</span>
+              </div>
             </div>
           </div>
 
           {/* Tab Switcher */}
-          <div className="flex space-x-1 mb-6 bg-purple-800/20 p-1 rounded-lg">
+          <div className="flex space-x-1 mb-4 sm:mb-6 bg-purple-800/20 p-1 rounded-lg">
             {['borrow', 'manage'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab as 'borrow' | 'manage')}
-                className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all ${
+                className={`flex-1 px-2 sm:px-4 py-2 rounded-lg font-medium transition-all text-sm sm:text-base ${
                   activeTab === tab
                     ? 'bg-purple-600 text-white'
                     : 'text-gray-400 hover:text-white hover:bg-purple-600/20'
                 }`}
               >
-                {tab === 'borrow' ? 'Borrowing' : 'Manage Loan'}
+                {tab === 'borrow' ? 'Borrowing' : <span><span className="hidden sm:inline">Manage </span>Loan</span>}
               </button>
             ))}
           </div>
@@ -627,12 +629,12 @@ export default function LoanManager() {
             <div className="space-y-4">
               {/* Borrow Type Selector */}
               <div>
-                <label className="block text-gray-400 mb-2">Loan Type</label>
-                <div className="grid grid-cols-3 gap-2">
+                <label className="block text-gray-400 mb-2 text-sm sm:text-base">Loan Type</label>
+                <div className="grid grid-cols-3 gap-1 sm:gap-2">
                   <button
                     onClick={() => setBorrowType('normal')}
                     disabled={currentLoan.hasLoan && !currentLoan.isExpired}
-                    className={`px-3 py-2 rounded-lg font-medium transition-all ${
+                    className={`px-2 sm:px-3 py-2 rounded-lg font-medium transition-all text-xs sm:text-sm ${
                       borrowType === 'normal'
                         ? 'bg-purple-600 text-white'
                         : 'bg-purple-800/20 text-gray-400 hover:bg-purple-800/40'
@@ -643,7 +645,7 @@ export default function LoanManager() {
                   <button
                     onClick={() => setBorrowType('leverage')}
                     disabled={currentLoan.hasLoan && !currentLoan.isExpired}
-                    className={`px-3 py-2 rounded-lg font-medium transition-all ${
+                    className={`px-2 sm:px-3 py-2 rounded-lg font-medium transition-all text-xs sm:text-sm ${
                       borrowType === 'leverage'
                         ? 'bg-purple-600 text-white'
                         : 'bg-purple-800/20 text-gray-400 hover:bg-purple-800/40'
@@ -654,27 +656,27 @@ export default function LoanManager() {
                   <button
                     onClick={() => setBorrowType('more')}
                     disabled={!currentLoan.hasLoan || currentLoan.isExpired}
-                    className={`px-3 py-2 rounded-lg font-medium transition-all ${
+                    className={`px-1 sm:px-3 py-2 rounded-lg font-medium transition-all text-xs sm:text-sm ${
                       borrowType === 'more'
                         ? 'bg-purple-600 text-white'
                         : 'bg-purple-800/20 text-gray-400 hover:bg-purple-800/40'
                     } ${(!currentLoan.hasLoan || currentLoan.isExpired) ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
-                    Borrow More
+                    <span className="hidden sm:inline">Borrow </span>More
                   </button>
                 </div>
               </div>
 
               {/* Loan Type Information */}
-              <div className="p-4 bg-purple-800/10 rounded-lg text-sm">
+              <div className="p-3 sm:p-4 bg-purple-800/10 rounded-lg text-xs sm:text-sm">
                 {borrowType === 'normal' && (
                   <div>
                     <h4 className="font-semibold text-purple-400 mb-2">Normal Borrow</h4>
                     <ul className="space-y-1 text-gray-400">
-                      <li>• Requires LARRY collateral (you have: {parseFloat(userBalances.larryBalance).toFixed(2)} LARRY)</li>
-                      <li>• You receive 99% of borrowed amount minus interest</li>
-                      <li>• Interest rate: ~3.9% annually + 0.1% base fee</li>
-                      <li>• Maximum borrow: {parseFloat(getBorrowLimit()).toFixed(4)} ETH</li>
+                      <li>• Requires LARRY collateral <span className="hidden sm:inline">(you have: {parseFloat(userBalances.larryBalance).toFixed(2)} LARRY)</span></li>
+                      <li>• You receive 99% of borrowed amount <span className="hidden sm:inline">minus interest</span></li>
+                      <li>• Interest rate: ~3.9% annually <span className="hidden sm:inline">+ 0.1% base fee</span></li>
+                      <li>• Max borrow: {parseFloat(getBorrowLimit()).toFixed(4)} ETH</li>
                     </ul>
                   </div>
                 )}
@@ -682,10 +684,10 @@ export default function LoanManager() {
                   <div>
                     <h4 className="font-semibold text-purple-400 mb-2">Leverage Borrow</h4>
                     <ul className="space-y-1 text-gray-400">
-                      <li>• Requires ETH payment upfront (you have: {parseFloat(userBalances.ethBalance).toFixed(4)} ETH)</li>
-                      <li>• Creates leveraged position with automated collateral</li>
-                      <li>• Leverage fee: {parseFloat(userBalances.ethBalance) > 0 ? "Calculated based on amount and days" : "Insufficient ETH"}</li>
-                      <li>• Maximum leverage: {parseFloat(getBorrowLimit()).toFixed(4)} ETH</li>
+                      <li>• Requires ETH payment upfront <span className="hidden sm:inline">(you have: {parseFloat(userBalances.ethBalance).toFixed(4)} ETH)</span></li>
+                      <li>• Creates leveraged position <span className="hidden sm:inline">with automated collateral</span></li>
+                      <li>• Leverage fee: <span className="hidden sm:inline">{parseFloat(userBalances.ethBalance) > 0 ? "Calculated based on amount and days" : "Insufficient ETH"}</span><span className="sm:hidden">Variable</span></li>
+                      <li>• Max leverage: {parseFloat(getBorrowLimit()).toFixed(4)} ETH</li>
                     </ul>
                   </div>
                 )}
@@ -693,10 +695,10 @@ export default function LoanManager() {
                   <div>
                     <h4 className="font-semibold text-purple-400 mb-2">Borrow More</h4>
                     <ul className="space-y-1 text-gray-400">
-                      <li>• Add to existing loan (Current: {currentLoan.borrowed} ETH)</li>
-                      <li>• Uses remaining loan duration ({Math.max(0, Math.floor((Number(currentLoan.endDate) - Date.now() / 1000) / 86400))} days left)</li>
-                      <li>• May require additional collateral</li>
-                      <li>• Maximum additional: {parseFloat(getBorrowLimit()).toFixed(4)} ETH</li>
+                      <li>• Add to existing loan <span className="hidden sm:inline">(Current: {currentLoan.borrowed} ETH)</span></li>
+                      <li>• Uses remaining duration <span className="hidden sm:inline">({Math.max(0, Math.floor((Number(currentLoan.endDate) - Date.now() / 1000) / 86400))} days left)</span></li>
+                      <li>• May require <span className="hidden sm:inline">additional</span> collateral</li>
+                      <li>• Max additional: {parseFloat(getBorrowLimit()).toFixed(4)} ETH</li>
                     </ul>
                   </div>
                 )}

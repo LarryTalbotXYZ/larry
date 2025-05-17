@@ -28,14 +28,14 @@ export default function Dashboard() {
       <WalletHeader />
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Tab Navigation */}
-        <div className="flex space-x-1 mb-8 bg-purple-900/20 p-1 rounded-lg">
+        <div className="flex space-x-1 mb-4 sm:mb-8 bg-purple-900/20 p-1 rounded-lg">
           {['trading', 'leverage', 'stats'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab as any)}
-              className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all ${
+              className={`flex-1 px-2 sm:px-4 py-2 rounded-lg font-medium transition-all text-sm sm:text-base ${
                 activeTab === tab
                   ? 'bg-purple-600 text-white'
                   : 'text-gray-400 hover:text-white hover:bg-purple-600/20'

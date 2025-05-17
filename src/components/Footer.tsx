@@ -51,7 +51,7 @@ export default function Footer() {
         {/* Social Icons Row */}
         <div className="flex items-center justify-center space-x-6 mb-8">
           <a 
-            href="https://x.com/larryprotocol" 
+            href="https://x.com/LarryTalbotXYZ" 
             target="_blank" 
             rel="noopener noreferrer"
             className="text-gray-400 hover:text-purple-400 transition-colors"
@@ -61,7 +61,7 @@ export default function Footer() {
             </svg>
           </a>
           <a 
-            href="https://t.me/larryprotocol" 
+            href="https://t.me/LarryTalbotXYZ" 
             target="_blank" 
             rel="noopener noreferrer"
             className="text-gray-400 hover:text-purple-400 transition-colors"
@@ -71,7 +71,7 @@ export default function Footer() {
             </svg>
           </a>
           <a 
-            href="https://github.com/larryprotocol" 
+            href="https://github.com/LarryTalbotXYZ" 
             target="_blank" 
             rel="noopener noreferrer"
             className="text-gray-400 hover:text-purple-400 transition-colors"

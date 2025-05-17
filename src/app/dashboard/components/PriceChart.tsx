@@ -136,21 +136,21 @@ export default function PriceChart() {
       animate={{ opacity: 1, y: 0 }}
       className="bg-purple-900/20 backdrop-blur-sm rounded-2xl p-6 border border-purple-500/20"
     >
-      <div className="flex justify-between items-start mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start mb-4 sm:mb-6 gap-2">
         <div>
-          <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-purple-600 bg-clip-text text-transparent">
+          <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-purple-400 to-purple-600 bg-clip-text text-transparent">
             Price Chart
           </h2>
-          <p className="text-gray-400 text-sm mt-1">24h Price Movement</p>
+          <p className="text-gray-400 text-xs sm:text-sm mt-1">24h Price Movement</p>
         </div>
-        <div className="text-right">
-          <div className="text-2xl font-bold text-white">
+        <div className="text-left sm:text-right">
+          <div className="text-lg sm:text-2xl font-bold text-white">
             {parseFloat(currentPrice).toLocaleString(undefined, {
-              minimumFractionDigits: 10,
+              minimumFractionDigits: 7,
               maximumFractionDigits: 10
             })} ETH
           </div>
-          <div className={`text-sm font-medium text-green-400`}>
+          <div className={`text-xs sm:text-sm font-medium text-green-400`}>
             +{priceChange}%
           </div>
         </div>
@@ -163,14 +163,14 @@ export default function PriceChart() {
       ) : (
         <div className="relative h-48">
           {/* Price labels on sides */}
-          <div className="absolute left-0 top-6 text-xs text-gray-400">
-            0.000001 ETH
+          <div className="absolute left-0 top-6 text-[10px] sm:text-xs text-gray-400">
+            0.000001
           </div>
-          <div className="absolute right-0 top-6 text-xs text-gray-400">
+          <div className="absolute right-0 top-6 text-[10px] sm:text-xs text-gray-400">
             {parseFloat(currentPrice).toLocaleString(undefined, {
-              minimumFractionDigits: 10,
+              minimumFractionDigits: 7,
               maximumFractionDigits: 10
-            })} ETH
+            })}
           </div>
           
           <svg

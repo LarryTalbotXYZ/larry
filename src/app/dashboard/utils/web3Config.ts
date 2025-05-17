@@ -4,14 +4,31 @@ import contractData from './larryContract.json';
 export const CONTRACT_ADDRESS = contractData.address;
 export const CONTRACT_ABI = contractData.abi;
 
-// Ethereum Mainnet RPC URL
-export const RPC_URL = 'https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161';
+// Ethereum Mainnet RPC URLs with public fallbacks
+const RPC_URLS = [
+  'https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161',
+  'https://eth-mainnet.public.blastapi.io',
+  'https://ethereum-rpc.publicnode.com',
+  'https://eth.llamarpc.com',
+  'https://rpc.flashbots.net'
+];
 
 export const getProvider = () => {
   if (typeof window !== 'undefined' && (window as any).ethereum) {
     return new ethers.BrowserProvider((window as any).ethereum);
   }
-  return new ethers.JsonRpcProvider(RPC_URL);
+  
+  // Try each RPC URL until one works
+  for (const url of RPC_URLS) {
+    try {
+      return new ethers.JsonRpcProvider(url);
+    } catch (e) {
+      console.warn(`Failed to connect to ${url}, trying next...`);
+    }
+  }
+  
+  // If all fail, return the first one anyway (it will error later)
+  return new ethers.JsonRpcProvider(RPC_URLS[0]);
 };
 
 export const getContract = async (signer?: ethers.Signer) => {

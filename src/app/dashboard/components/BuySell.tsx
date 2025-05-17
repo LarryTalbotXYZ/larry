@@ -246,19 +246,19 @@ export default function BuySell() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-purple-900/20 backdrop-blur-sm rounded-2xl p-6 border border-purple-500/20"
+      className="bg-purple-900/20 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-purple-500/20"
     >
-      <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-purple-400 to-purple-600 bg-clip-text text-transparent">
+      <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 bg-gradient-to-r from-purple-400 to-purple-600 bg-clip-text text-transparent">
         Trade $LARRY
       </h2>
 
       {/* Tab Switcher */}
-      <div className="flex space-x-1 mb-6 bg-purple-800/20 p-1 rounded-lg">
+      <div className="flex space-x-1 mb-4 sm:mb-6 bg-purple-800/20 p-1 rounded-lg">
         {['buy', 'sell'].map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab as 'buy' | 'sell')}
-            className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all ${
+            className={`flex-1 px-3 sm:px-4 py-2 rounded-lg font-medium transition-all text-sm sm:text-base ${
               activeTab === tab
                 ? 'bg-purple-600 text-white'
                 : 'text-gray-400 hover:text-white hover:bg-purple-600/20'
@@ -273,17 +273,17 @@ export default function BuySell() {
         <>
           {/* Chain Warning */}
           {chainId !== '0x1' && (
-            <div className="mb-4 p-3 bg-yellow-900/20 border border-yellow-500/30 rounded-lg text-yellow-400 text-sm">
+            <div className="mb-4 p-2 sm:p-3 bg-yellow-900/20 border border-yellow-500/30 rounded-lg text-yellow-400 text-xs sm:text-sm">
               ⚠️ Please switch to Ethereum Mainnet network to trade
             </div>
           )}
 
           {/* Amount Input */}
           <div className="mb-4">
-            <label className="block text-gray-400 mb-2">
-              Amount ({activeTab === 'buy' ? 'ETH' : 'LARRY'})
-              <span className="text-sm ml-2">
-                Balance: {parseFloat(activeTab === 'buy' ? userBalances.ethBalance : userBalances.larryBalance).toFixed(6)}
+            <label className="block text-gray-400 mb-2 text-sm sm:text-base">
+              <span className="block sm:inline">Amount ({activeTab === 'buy' ? 'ETH' : 'LARRY'})</span>
+              <span className="text-xs sm:text-sm block sm:inline sm:ml-2 mt-1 sm:mt-0">
+                Balance: {parseFloat(activeTab === 'buy' ? userBalances.ethBalance : userBalances.larryBalance).toFixed(4)}
               </span>
             </label>
             <div className="relative">
@@ -294,7 +294,7 @@ export default function BuySell() {
                 placeholder="0.0"
                 step="0.000001"
                 min="0"
-                className="w-full px-4 py-3 bg-purple-800/20 border border-purple-500/30 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-400 transition-colors pr-16"
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-purple-800/20 border border-purple-500/30 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-400 transition-colors pr-12 sm:pr-16 text-sm sm:text-base"
               />
               <button
                 onClick={() => {
@@ -303,7 +303,7 @@ export default function BuySell() {
                     : userBalances.larryBalance;
                   setAmount(maxAmount);
                 }}
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 px-3 py-1 bg-purple-600 hover:bg-purple-700 text-xs text-white rounded font-medium transition-colors"
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 px-2 sm:px-3 py-1 bg-purple-600 hover:bg-purple-700 text-xs text-white rounded font-medium transition-colors"
               >
                 MAX
               </button>
@@ -311,28 +311,28 @@ export default function BuySell() {
           </div>
 
           {/* Preview */}
-          <div className="mb-6 p-4 bg-purple-800/10 rounded-lg space-y-2">
-            <div className="flex justify-between text-sm">
+          <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-purple-800/10 rounded-lg space-y-1.5 sm:space-y-2">
+            <div className="flex justify-between text-xs sm:text-sm">
               <span className="text-gray-400">You pay</span>
               <span className="text-white">
                 {preview.input} {activeTab === 'buy' ? 'ETH' : 'LARRY'}
               </span>
             </div>
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between text-xs sm:text-sm">
               <span className="text-gray-400">You receive</span>
               <span className="text-green-400">
-                {parseFloat(preview.output).toFixed(6)} {activeTab === 'buy' ? 'LARRY' : 'ETH'}
+                {parseFloat(preview.output).toFixed(4)} {activeTab === 'buy' ? 'LARRY' : 'ETH'}
               </span>
             </div>
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between text-xs sm:text-sm">
               <span className="text-gray-400">Protocol fee</span>
               <span className="text-yellow-400">{preview.fee}%</span>
             </div>
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between text-xs sm:text-sm">
               <span className="text-gray-400">Token price</span>
               <span className="text-purple-400">{parseFloat(preview.tokenPrice).toFixed(6)} ETH</span>
             </div>
-            <div className="text-xs text-gray-500 italic mt-2">
+            <div className="text-[10px] sm:text-xs text-gray-500 italic mt-2">
               *Final amount may vary slightly due to price movements
             </div>
           </div>
@@ -343,7 +343,7 @@ export default function BuySell() {
             whileTap={{ scale: 0.98 }}
             onClick={handleTransaction}
             disabled={loading || !amount || chainId !== '0x1'}
-            className={`w-full py-3 rounded-lg font-medium transition-all ${
+            className={`w-full py-2.5 sm:py-3 rounded-lg font-medium transition-all text-sm sm:text-base ${
               loading || !amount || chainId !== '0x1'
                 ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
                 : activeTab === 'buy'
@@ -353,7 +353,7 @@ export default function BuySell() {
           >
             {loading ? (
               <span className="flex items-center justify-center">
-                <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
+                <svg className="animate-spin h-4 w-4 sm:h-5 sm:w-5 mr-2" viewBox="0 0 24 24">
                   <circle
                     className="opacity-25"
                     cx="12"
@@ -376,18 +376,18 @@ export default function BuySell() {
           </motion.button>
 
           {/* Wallet Info & Balances */}
-          <div className="mt-6 p-4 bg-purple-800/10 rounded-lg">
-            <div className="text-center text-sm text-gray-400 mb-2">
+          <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-purple-800/10 rounded-lg">
+            <div className="text-center text-xs sm:text-sm text-gray-400 mb-2">
               Connected: {address.slice(0, 6)}...{address.slice(-4)}
             </div>
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
               <div className="text-center">
                 <div className="text-gray-400">ETH Balance</div>
-                <div className="text-white font-medium">{parseFloat(userBalances.ethBalance).toFixed(6)}</div>
+                <div className="text-white font-medium">{parseFloat(userBalances.ethBalance).toFixed(4)}</div>
               </div>
               <div className="text-center">
                 <div className="text-gray-400">LARRY Balance</div>
-                <div className="text-white font-medium">{parseFloat(userBalances.larryBalance).toFixed(6)}</div>
+                <div className="text-white font-medium">{parseFloat(userBalances.larryBalance).toFixed(4)}</div>
               </div>
             </div>
           </div>
@@ -397,7 +397,7 @@ export default function BuySell() {
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={connect}
-          className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
+          className="w-full py-2.5 sm:py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors text-sm sm:text-base"
         >
           Connect Wallet
         </motion.button>
