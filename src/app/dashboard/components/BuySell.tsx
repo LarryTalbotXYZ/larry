@@ -283,7 +283,7 @@ export default function BuySell() {
             <label className="block text-gray-400 mb-2 text-sm sm:text-base">
               <span className="block sm:inline">Amount ({activeTab === 'buy' ? 'ETH' : 'LARRY'})</span>
               <span className="text-xs sm:text-sm block sm:inline sm:ml-2 mt-1 sm:mt-0">
-                Balance: {parseFloat(activeTab === 'buy' ? userBalances.ethBalance : userBalances.larryBalance).toFixed(4)}
+                Balance: {(activeTab === 'buy' ? userBalances.ethBalance : userBalances.larryBalance)}
               </span>
             </label>
             <div className="relative">
@@ -321,7 +321,7 @@ export default function BuySell() {
             <div className="flex justify-between text-xs sm:text-sm">
               <span className="text-gray-400">You receive</span>
               <span className="text-green-400">
-                {parseFloat(preview.output).toFixed(4)} {activeTab === 'buy' ? 'LARRY' : 'ETH'}
+                {preview.output} {activeTab === 'buy' ? 'LARRY' : 'ETH'}
               </span>
             </div>
             <div className="flex justify-between text-xs sm:text-sm">
@@ -330,7 +330,7 @@ export default function BuySell() {
             </div>
             <div className="flex justify-between text-xs sm:text-sm">
               <span className="text-gray-400">Token price</span>
-              <span className="text-purple-400">{parseFloat(preview.tokenPrice).toFixed(6)} ETH (Base)</span>
+              <span className="text-purple-400">{preview.tokenPrice} ETH (Base)</span>
             </div>
             <div className="text-[10px] sm:text-xs text-gray-500 italic mt-2">
               *Final amount may vary slightly due to price movements
@@ -383,11 +383,11 @@ export default function BuySell() {
             <div className="grid grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
               <div className="text-center">
                 <div className="text-gray-400">ETH Balance</div>
-                <div className="text-white font-medium">{parseFloat(userBalances.ethBalance).toFixed(4)}</div>
+                <div className="text-white font-medium">{userBalances.ethBalance}</div>
               </div>
               <div className="text-center">
                 <div className="text-gray-400">LARRY Balance</div>
-                <div className="text-white font-medium">{parseFloat(userBalances.larryBalance).toFixed(4)}</div>
+                <div className="text-white font-medium">{userBalances.larryBalance}</div>
               </div>
             </div>
           </div>

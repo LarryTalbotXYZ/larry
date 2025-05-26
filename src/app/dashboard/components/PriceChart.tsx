@@ -145,10 +145,7 @@ export default function PriceChart() {
         </div>
         <div className="text-left sm:text-right">
           <div className="text-lg sm:text-2xl font-bold text-white">
-            {parseFloat(currentPrice).toLocaleString(undefined, {
-              minimumFractionDigits: 7,
-              maximumFractionDigits: 10
-            })} ETH (Base)
+            {currentPrice} ETH (Base)
           </div>
           <div className={`text-xs sm:text-sm font-medium text-green-400`}>
             +{priceChange}%
@@ -167,10 +164,7 @@ export default function PriceChart() {
             0.000001
           </div>
           <div className="absolute right-0 top-6 text-[10px] sm:text-xs text-gray-400">
-            {parseFloat(currentPrice).toLocaleString(undefined, {
-              minimumFractionDigits: 7,
-              maximumFractionDigits: 10
-            })}
+            {currentPrice}
           </div>
           
           <svg
