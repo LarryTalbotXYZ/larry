@@ -592,7 +592,7 @@ export default function ArbitrageBot() {
                 <p className="text-xl font-bold text-white">
                   {opportunity.direction 
                     ? `${parseFloat(opportunity.expectedReturn).toFixed(2)}`
-                    : `${parseFloat(opportunity.route.amountIn).toFixed(2)}`
+                    : `${parseFloat(ethers.formatUnits(opportunity.route.amountIn, 18)).toFixed(2)}`
                   }
                 </p>
               </div>
@@ -607,7 +607,7 @@ export default function ArbitrageBot() {
             <div className="bg-green-500/10 rounded-lg p-4 border border-green-500/20">
               <p className="text-gray-400 text-sm mb-1">Guaranteed Returns</p>
               <div className="flex items-center justify-between">
-                <p className="text-lg font-bold text-green-400">{opportunity.principalAmount} ETH + {gasReimbursementAmount} ETH</p>
+                <p className="text-lg font-bold text-green-400">{opportunity.principalAmount} ETH + {parseFloat(gasReimbursementAmount).toFixed(5)} ETH</p>
                 <span className="text-sm text-gray-400">Principal + Gas</span>
               </div>
             </div>
