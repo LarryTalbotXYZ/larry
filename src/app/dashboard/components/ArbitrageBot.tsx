@@ -28,6 +28,7 @@ interface ArbitrageOpportunity {
   expectedReturn: string;
   principalAmount: string;
   estimatedProfit?: string;
+  actualEthReturn?: string;
 }
 
 interface BotStats {
@@ -60,6 +61,7 @@ export default function ArbitrageBot() {
   const ARBITRAGE_CONTRACT = '0x7Bee2beF4adC5504CD747106924304d26CcFBd94';
   const LARRY_ADDRESS = '0x888d81e3ea5E8362B5f69188CBCF34Fa8da4b888';
   const ETH_ADDRESS = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
+  const WETH_ADDRESS = '0x4200000000000000000000000000000000000006'; // Base WETH
 
   // Load contract info on mount
   useEffect(() => {
@@ -92,12 +94,24 @@ export default function ArbitrageBot() {
         amountIn: amountInWei
       });
 
+      console.log('Fetching KyberSwap route:', {
+        tokenIn,
+        tokenOut,
+        amountIn: amountIn,
+        amountInWei,
+        url: `${url}?${params}`
+      });
+
       const response = await fetch(`${url}?${params}`);
-      if (response.ok) {
-        const data = await response.json();
+      const data = await response.json();
+      
+      if (response.ok && data.data) {
+        console.log('KyberSwap route found:', data.data.routeSummary);
         return data.data;
+      } else {
+        console.warn('KyberSwap route not found:', data);
+        return null;
       }
-      return null;
     } catch (error) {
       console.error('Error getting KyberSwap route:', error);
       return null;
@@ -154,7 +168,14 @@ export default function ArbitrageBot() {
       
       // Check Kyber -> Larry direction (Buy LARRY on Kyber, sell on Larry DEX)
       if (checkingDirection === 'kyber-to-larry' || checkingDirection === 'both') {
-        const kyberRoute = await getKyberSwapRoute(ETH_ADDRESS, LARRY_ADDRESS, tradeAmount);
+        // Try with ETH address first, then WETH if that fails
+        let kyberRoute = await getKyberSwapRoute(ETH_ADDRESS, LARRY_ADDRESS, tradeAmount);
+        
+        // If no route found with ETH address, try WETH
+        if (!kyberRoute || !kyberRoute.routeSummary) {
+          console.log('No route found with ETH address, trying WETH...');
+          kyberRoute = await getKyberSwapRoute(WETH_ADDRESS, LARRY_ADDRESS, tradeAmount);
+        }
         
         if (kyberRoute && kyberRoute.routeSummary) {
           const larryAmountFromKyber = ethers.formatUnits(kyberRoute.routeSummary.amountOut, 18);
@@ -179,16 +200,16 @@ export default function ArbitrageBot() {
               profit: estimatedProfit
             });
             
-            if (estimatedProfit > 0) {
-              bestOpportunity = {
-                direction: true,
-                directionName: 'ETH → LARRY (Kyber) → ETH (Larry)',
-                route: kyberRoute.routeSummary,
-                expectedReturn: larryAmountFromKyber,
-                principalAmount: tradeAmount,
-                estimatedProfit: estimatedProfit.toFixed(6)
-              };
-            }
+            // Store the opportunity even if not profitable, so we can show it
+            bestOpportunity = {
+              direction: true,
+              directionName: 'ETH → LARRY (Kyber) → ETH (Larry)',
+              route: kyberRoute.routeSummary,
+              expectedReturn: larryAmountFromKyber,
+              principalAmount: tradeAmount,
+              estimatedProfit: estimatedProfit.toFixed(6),
+              actualEthReturn: ethReturnFormatted
+            };
           } catch (error) {
             console.error('Error getting Larry DEX quote:', error);
           }
@@ -212,7 +233,13 @@ export default function ArbitrageBot() {
           const larryAmountFormatted = ethers.formatUnits(adjustedLarryAmount, 18);
           
           // Now check Kyber price for selling this adjusted LARRY amount
-          const kyberRoute = await getKyberSwapRoute(LARRY_ADDRESS, ETH_ADDRESS, larryAmountFormatted);
+          let kyberRoute = await getKyberSwapRoute(LARRY_ADDRESS, ETH_ADDRESS, larryAmountFormatted);
+          
+          // If no route found with ETH address, try WETH
+          if (!kyberRoute || !kyberRoute.routeSummary) {
+            console.log('No route found with ETH address for selling, trying WETH...');
+            kyberRoute = await getKyberSwapRoute(LARRY_ADDRESS, WETH_ADDRESS, larryAmountFormatted);
+          }
           
           if (kyberRoute && kyberRoute.routeSummary) {
             const ethReturnFromKyber = ethers.formatUnits(kyberRoute.routeSummary.amountOut, 18);
@@ -227,7 +254,8 @@ export default function ArbitrageBot() {
               profit: estimatedProfit
             });
             
-            if (estimatedProfit > 0 && (!bestOpportunity || estimatedProfit > parseFloat(bestOpportunity.estimatedProfit || '0'))) {
+            // Store the opportunity if it's better than what we have (or if we have none)
+            if (!bestOpportunity || estimatedProfit > parseFloat(bestOpportunity.estimatedProfit || '0')) {
               bestOpportunity = {
                 direction: false,
                 directionName: 'ETH → LARRY (Larry) → ETH (Kyber)',
@@ -557,14 +585,25 @@ export default function ArbitrageBot() {
               <p className="text-lg font-bold text-white">{opportunity.directionName}</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="bg-purple-500/10 rounded-lg p-4">
                 <p className="text-gray-400 text-sm mb-1">Input</p>
                 <p className="text-xl font-bold text-white">{opportunity.principalAmount} ETH</p>
               </div>
               <div className="bg-purple-500/10 rounded-lg p-4">
-                <p className="text-gray-400 text-sm mb-1">Expected {opportunity.direction ? 'LARRY' : 'ETH Return'}</p>
-                <p className="text-xl font-bold text-white">{parseFloat(opportunity.expectedReturn).toFixed(4)}</p>
+                <p className="text-gray-400 text-sm mb-1">{opportunity.direction ? 'LARRY from Kyber' : 'LARRY from DEX'}</p>
+                <p className="text-xl font-bold text-white">
+                  {opportunity.direction 
+                    ? `${parseFloat(opportunity.expectedReturn).toFixed(2)}`
+                    : `${parseFloat(opportunity.route.amountIn).toFixed(2)}`
+                  }
+                </p>
+              </div>
+              <div className="bg-purple-500/10 rounded-lg p-4">
+                <p className="text-gray-400 text-sm mb-1">Final ETH Return</p>
+                <p className="text-xl font-bold text-white">
+                  {opportunity.actualEthReturn || opportunity.expectedReturn} ETH
+                </p>
               </div>
             </div>
 
