@@ -109,6 +109,13 @@ export default function ArbitrageBot() {
     try {
       const deadline = Math.floor(Date.now() / 1000) + 3600;
       
+      console.log('Building swap data for route:', {
+        tokenIn: routeSummary.tokenIn,
+        tokenOut: routeSummary.tokenOut,
+        amountIn: routeSummary.amountIn,
+        amountOut: routeSummary.amountOut
+      });
+      
       const response = await fetch('https://aggregator-api.kyberswap.com/base/api/v1/route/build', {
         method: 'POST',
         headers: {
@@ -118,7 +125,7 @@ export default function ArbitrageBot() {
           routeSummary,
           sender: ARBITRAGE_CONTRACT,
           recipient: ARBITRAGE_CONTRACT,
-          slippageTolerance: 300, // 3%
+          slippageTolerance: 500, // 5% - increased for better execution
           deadline
         })
       });
@@ -126,6 +133,9 @@ export default function ArbitrageBot() {
       if (response.ok) {
         const data = await response.json();
         return data.data?.data;
+      } else {
+        const errorData = await response.text();
+        console.error('KyberSwap API error:', errorData);
       }
       return null;
     } catch (error) {
@@ -142,53 +152,94 @@ export default function ArbitrageBot() {
     try {
       let bestOpportunity: ArbitrageOpportunity | null = null;
       
-      // Check Kyber -> Larry direction
+      // Check Kyber -> Larry direction (Buy LARRY on Kyber, sell on Larry DEX)
       if (checkingDirection === 'kyber-to-larry' || checkingDirection === 'both') {
-        const route = await getKyberSwapRoute(ETH_ADDRESS, LARRY_ADDRESS, tradeAmount);
+        const kyberRoute = await getKyberSwapRoute(ETH_ADDRESS, LARRY_ADDRESS, tradeAmount);
         
-        if (route && route.routeSummary) {
-          const larryAmount = ethers.formatUnits(route.routeSummary.amountOut, 18);
+        if (kyberRoute && kyberRoute.routeSummary) {
+          const larryAmountFromKyber = ethers.formatUnits(kyberRoute.routeSummary.amountOut, 18);
           
-          // For more accurate estimation, we should call the contract
-          // But for now, let's set a very conservative estimate
-          // Assuming we get back slightly less than input due to fees
-          const estimatedEthReturn = parseFloat(tradeAmount) * 0.99; // Conservative estimate
-          const requiredReturn = parseFloat(tradeAmount) + parseFloat(gasReimbursementAmount);
-          const estimatedProfit = estimatedEthReturn - requiredReturn;
-          
-          bestOpportunity = {
-            direction: true,
-            directionName: 'ETH → LARRY (Kyber) → ETH (Larry)',
-            route: route.routeSummary,
-            expectedReturn: larryAmount,
-            principalAmount: tradeAmount,
-            estimatedProfit: estimatedProfit > 0 ? estimatedProfit.toFixed(6) : '0'
-          };
+          // Now check how much ETH we'd get selling this LARRY on Larry DEX
+          // We need to call the contract to get the actual return amount
+          try {
+            const larryAmountWei = ethers.parseUnits(larryAmountFromKyber, 18);
+            
+            // Get quote from Larry DEX for selling LARRY
+            const larryContract = new ethers.Contract(LARRY_ADDRESS, ['function LARRYtoETH(uint256 value) view returns (uint256)'], signer);
+            const ethReturnFromLarry = await larryContract.LARRYtoETH(larryAmountWei);
+            const ethReturnFormatted = ethers.formatEther(ethReturnFromLarry);
+            
+            const requiredReturn = parseFloat(tradeAmount) + parseFloat(gasReimbursementAmount);
+            const estimatedProfit = parseFloat(ethReturnFormatted) - requiredReturn;
+            
+            console.log('Kyber->Larry Direction:', {
+              inputETH: tradeAmount,
+              larryFromKyber: larryAmountFromKyber,
+              ethFromLarryDex: ethReturnFormatted,
+              profit: estimatedProfit
+            });
+            
+            if (estimatedProfit > 0) {
+              bestOpportunity = {
+                direction: true,
+                directionName: 'ETH → LARRY (Kyber) → ETH (Larry)',
+                route: kyberRoute.routeSummary,
+                expectedReturn: larryAmountFromKyber,
+                principalAmount: tradeAmount,
+                estimatedProfit: estimatedProfit.toFixed(6)
+              };
+            }
+          } catch (error) {
+            console.error('Error getting Larry DEX quote:', error);
+          }
         }
       }
       
-      // Check Larry -> Kyber direction
+      // Check Larry -> Kyber direction (Buy LARRY on Larry DEX, sell on Kyber)
       if (checkingDirection === 'larry-to-kyber' || checkingDirection === 'both') {
-        // First, we need to know how much LARRY we'd get from Larry DEX
-        // This would require calling the contract, but for now we'll estimate
-        const estimatedLarryFromDex = parseFloat(tradeAmount) * 1000; // Rough estimate
-        
-        const route = await getKyberSwapRoute(LARRY_ADDRESS, ETH_ADDRESS, estimatedLarryFromDex.toString());
-        
-        if (route && route.routeSummary) {
-          const ethReturn = ethers.formatUnits(route.routeSummary.amountOut, 18);
-          const estimatedProfit = Math.max(0, parseFloat(ethReturn) - parseFloat(tradeAmount) - parseFloat(gasReimbursementAmount));
+        try {
+          const ethAmountWei = ethers.parseEther(tradeAmount);
           
-          if (!bestOpportunity || estimatedProfit > parseFloat(bestOpportunity.estimatedProfit || '0')) {
-            bestOpportunity = {
-              direction: false,
-              directionName: 'ETH → LARRY (Larry) → ETH (Kyber)',
-              route: route.routeSummary,
-              expectedReturn: ethReturn,
-              principalAmount: tradeAmount,
-              estimatedProfit: estimatedProfit.toFixed(6)
-            };
+          // Get quote from Larry DEX for buying LARRY with ETH
+          const larryContract = new ethers.Contract(LARRY_ADDRESS, ['function getBuyLARRY(uint256 amount) view returns (uint256)'], signer);
+          
+          // Use getBuyLARRY which calculates: (amount * totalSupply * buy_fee) / backing / FEE_BASE_10000
+          const larryAmountFromDex = await larryContract.getBuyLARRY(ethAmountWei);
+          
+          // Apply a small reduction (0.5%) to account for potential slippage/rounding
+          // This ensures KyberSwap won't fail due to insufficient tokens
+          const adjustedLarryAmount = larryAmountFromDex * BigInt(995) / BigInt(1000);
+          const larryAmountFormatted = ethers.formatUnits(adjustedLarryAmount, 18);
+          
+          // Now check Kyber price for selling this adjusted LARRY amount
+          const kyberRoute = await getKyberSwapRoute(LARRY_ADDRESS, ETH_ADDRESS, larryAmountFormatted);
+          
+          if (kyberRoute && kyberRoute.routeSummary) {
+            const ethReturnFromKyber = ethers.formatUnits(kyberRoute.routeSummary.amountOut, 18);
+            const requiredReturn = parseFloat(tradeAmount) + parseFloat(gasReimbursementAmount);
+            const estimatedProfit = parseFloat(ethReturnFromKyber) - requiredReturn;
+            
+            console.log('Larry->Kyber Direction:', {
+              inputETH: tradeAmount,
+              larryFromDex: ethers.formatUnits(larryAmountFromDex, 18),
+              adjustedLarryAmount: larryAmountFormatted,
+              ethFromKyber: ethReturnFromKyber,
+              profit: estimatedProfit
+            });
+            
+            if (estimatedProfit > 0 && (!bestOpportunity || estimatedProfit > parseFloat(bestOpportunity.estimatedProfit || '0'))) {
+              bestOpportunity = {
+                direction: false,
+                directionName: 'ETH → LARRY (Larry) → ETH (Kyber)',
+                route: kyberRoute.routeSummary,
+                expectedReturn: ethReturnFromKyber,
+                principalAmount: tradeAmount,
+                estimatedProfit: estimatedProfit.toFixed(6)
+              };
+            }
           }
+        } catch (error) {
+          console.error('Error getting Larry DEX quote:', error);
         }
       }
       
@@ -219,6 +270,35 @@ export default function ArbitrageBot() {
       
       // Remove '0x' prefix from swapData if present
       const swapDataBytes = swapData.startsWith('0x') ? swapData.slice(2) : swapData;
+      
+      console.log('Executing arbitrage:', {
+        direction: opportunity.direction,
+        directionName: opportunity.directionName,
+        principalAmount: opportunity.principalAmount,
+        expectedReturn: opportunity.expectedReturn,
+        estimatedProfit: opportunity.estimatedProfit,
+        swapDataLength: swapDataBytes.length
+      });
+      
+      // For Larry->Kyber direction, we need to check if the contract can handle the swap
+      if (!opportunity.direction) {
+        // Simulate the trade first
+        try {
+          const larryAmountExpected = ethers.parseUnits(opportunity.route.amountIn, 18);
+          console.log('Expected LARRY amount for Kyber swap:', ethers.formatUnits(larryAmountExpected, 18));
+          
+          // The contract will buy LARRY first, let's check if it matches what Kyber expects
+          const larryContract = new ethers.Contract(LARRY_ADDRESS, ['function getBuyLARRY(uint256 amount) view returns (uint256)'], signer);
+          const actualLarryAmount = await larryContract.getBuyLARRY(valueInWei);
+          console.log('Actual LARRY from Larry DEX:', ethers.formatUnits(actualLarryAmount, 18));
+          
+          if (actualLarryAmount < larryAmountExpected) {
+            console.warn('Warning: Larry DEX will provide less LARRY than Kyber expects. Adjusting slippage might help.');
+          }
+        } catch (error) {
+          console.error('Simulation check failed:', error);
+        }
+      }
       
       // Execute the arbitrage
       const tx = await contract.executePrincipalProtectedArbitrage(
@@ -252,9 +332,26 @@ export default function ArbitrageBot() {
         }, ...prev].slice(0, 10));
       }
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error executing arbitrage:', error);
-      alert(`Arbitrage failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      
+      let errorMessage = 'Unknown error';
+      if (error?.reason) {
+        errorMessage = error.reason;
+      } else if (error?.data?.message) {
+        errorMessage = error.data.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      // Parse common contract errors
+      if (errorMessage.includes('TRANSFER_FROM_FAILED')) {
+        errorMessage = 'Token transfer failed. This usually happens when the DEX prices have changed. Please try again.';
+      } else if (errorMessage.includes('insufficient return')) {
+        errorMessage = 'Trade would not be profitable after gas costs. Waiting for better market conditions.';
+      }
+      
+      alert(`Arbitrage failed: ${errorMessage}`);
     } finally {
       setIsExecuting(false);
     }
@@ -270,9 +367,10 @@ export default function ArbitrageBot() {
     return () => clearInterval(interval);
   }, [isBotRunning, checkOpportunity]);
 
-  // Auto-execute when opportunity is found and bot is running
+  // Auto-execute when profitable opportunity is found and bot is running
   useEffect(() => {
     if (!opportunity || !isBotRunning || isExecuting) return;
+    if (!opportunity.estimatedProfit || parseFloat(opportunity.estimatedProfit) <= 0) return;
     
     executeArbitrage();
   }, [opportunity, isBotRunning]);
