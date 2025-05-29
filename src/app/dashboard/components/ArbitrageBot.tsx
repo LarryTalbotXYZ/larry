@@ -227,10 +227,8 @@ export default function ArbitrageBot() {
           // Use getBuyLARRY which calculates: (amount * totalSupply * buy_fee) / backing / FEE_BASE_10000
           const larryAmountFromDex = await larryContract.getBuyLARRY(ethAmountWei);
           
-          // Apply a small reduction (0.5%) to account for potential slippage/rounding
-          // This ensures KyberSwap won't fail due to insufficient tokens
-          const adjustedLarryAmount = larryAmountFromDex * BigInt(995) / BigInt(1000);
-          const larryAmountFormatted = ethers.formatUnits(adjustedLarryAmount, 18);
+          // Larry DEX gives exactly what it shows, no slippage needed
+          const larryAmountFormatted = ethers.formatUnits(larryAmountFromDex, 18);
           
           // Now check Kyber price for selling this adjusted LARRY amount
           let kyberRoute = await getKyberSwapRoute(LARRY_ADDRESS, ETH_ADDRESS, larryAmountFormatted);
@@ -248,8 +246,7 @@ export default function ArbitrageBot() {
             
             console.log('Larry->Kyber Direction:', {
               inputETH: tradeAmount,
-              larryFromDex: ethers.formatUnits(larryAmountFromDex, 18),
-              adjustedLarryAmount: larryAmountFormatted,
+              larryFromDex: larryAmountFormatted,
               ethFromKyber: ethReturnFromKyber,
               profit: estimatedProfit
             });
@@ -550,8 +547,8 @@ export default function ArbitrageBot() {
               disabled={isBotRunning}
               className="w-full px-4 py-2 bg-black/40 border border-purple-500/30 rounded-lg text-white focus:outline-none focus:border-purple-500 disabled:opacity-50"
             >
-              <option value="kyber-to-larry">ETH → LARRY (Kyber) → ETH (Larry)</option>
-              <option value="larry-to-kyber">ETH → LARRY (Larry) → ETH (Kyber)</option>
+              <option value="kyber-to-larry">Kyber→Larry: Buy LARRY on Kyber, Sell on Larry DEX</option>
+              <option value="larry-to-kyber">Larry→Kyber: Buy LARRY on Larry DEX, Sell on Kyber</option>
               <option value="both">Check Both Directions</option>
             </select>
             <p className="text-sm text-gray-400 mt-1">Direction to check for arbitrage opportunities</p>
