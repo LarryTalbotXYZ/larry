@@ -6,12 +6,13 @@ import TokenStats from './components/TokenStats';
 import BuySell from './components/BuySell';
 import PriceChart from './components/PriceChart';
 import LoanManager from './components/LoanManager';
+import ArbitrageBot from './components/ArbitrageBot';
 import WalletHeader from './components/WalletHeader';
 import Image from 'next/image';
 import Link from 'next/link';
 
 export default function Dashboard() {
-  const [activeTab, setActiveTab] = useState<'trading' | 'leverage' | 'stats'>('trading');
+  const [activeTab, setActiveTab] = useState<'trading' | 'leverage' | 'stats' | 'arbitrage'>('trading');
   const [moonPhase, setMoonPhase] = useState(0);
   const moonPhases = ['🌑', '🌒', '🌓', '🌔', '🌕', '🌖', '🌗', '🌘'];
 
@@ -31,7 +32,7 @@ export default function Dashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Tab Navigation */}
         <div className="flex space-x-1 mb-4 sm:mb-8 bg-purple-900/20 p-1 rounded-lg">
-          {['trading', 'leverage', 'stats'].map((tab) => (
+          {['trading', 'leverage', 'stats', 'arbitrage'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab as any)}
@@ -72,6 +73,12 @@ export default function Dashboard() {
                 <h3 className="text-xl font-bold mb-4 text-purple-400">Market Stats</h3>
                 <PriceChart />
               </div>
+            </div>
+          )}
+
+          {activeTab === 'arbitrage' && (
+            <div className="max-w-6xl mx-auto">
+              <ArbitrageBot />
             </div>
           )}
         </motion.div>
