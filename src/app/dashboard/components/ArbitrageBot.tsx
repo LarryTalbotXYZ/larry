@@ -51,11 +51,15 @@ export default function ArbitrageBot() {
     totalGasReimbursed: '0'
   });
   const [tradeAmount, setTradeAmount] = useState('0.002');
+  const [smartMode, setSmartMode] = useState(true);
+  const [userBalance, setUserBalance] = useState<string>('0');
+  const [optimalAmount, setOptimalAmount] = useState<string | null>(null);
   const [lastCheck, setLastCheck] = useState<Date | null>(null);
+  const [nextCheckIn, setNextCheckIn] = useState<number>(30);
   const [txHistory, setTxHistory] = useState<any[]>([]);
   const [profitRecipient, setProfitRecipient] = useState<string>('');
   const [gasReimbursementAmount, setGasReimbursementAmount] = useState<string>('0.00005');
-  const [checkingDirection, setCheckingDirection] = useState<'both' | 'kyber-to-larry' | 'larry-to-kyber'>('kyber-to-larry');
+  const [checkingDirection, setCheckingDirection] = useState<'both' | 'kyber-to-larry' | 'larry-to-kyber'>('both');
 
   // V3 Arbitrage contract - Principal Protected with Gas Reimbursement
   const ARBITRAGE_CONTRACT = '0x7Bee2beF4adC5504CD747106924304d26CcFBd94';
@@ -63,10 +67,10 @@ export default function ArbitrageBot() {
   const ETH_ADDRESS = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
   const WETH_ADDRESS = '0x4200000000000000000000000000000000000006'; // Base WETH
 
-  // Load contract info on mount
+  // Load contract info and user balance
   useEffect(() => {
     const loadContractInfo = async () => {
-      if (!signer) return;
+      if (!signer || !address) return;
       
       try {
         const contract = new ethers.Contract(ARBITRAGE_CONTRACT, arbitrageLarryV3ABI, signer);
@@ -75,13 +79,20 @@ export default function ArbitrageBot() {
         
         setGasReimbursementAmount(ethers.formatEther(gasReimbursement));
         setProfitRecipient(recipient);
+        
+        // Get user's ETH balance
+        const provider = signer.provider;
+        if (provider) {
+          const balance = await provider.getBalance(address);
+          setUserBalance(ethers.formatEther(balance));
+        }
       } catch (error) {
         console.error('Error loading contract info:', error);
       }
     };
 
     loadContractInfo();
-  }, [signer]);
+  }, [signer, address]);
 
   // Get KyberSwap route
   const getKyberSwapRoute = async (tokenIn: string, tokenOut: string, amountIn: string): Promise<KyberRoute | null> => {
@@ -158,6 +169,124 @@ export default function ArbitrageBot() {
     }
   };
 
+  // Find optimal trade amount by testing different sizes
+  const findOptimalAmount = async (): Promise<{amount: string, profit: string, opportunity: ArbitrageOpportunity | null}> => {
+    const maxAmount = Math.min(parseFloat(userBalance) * 0.9, 0.1); // Max 90% of balance or 0.1 ETH
+    const minAmount = 0.001;
+    const testAmounts = [];
+    
+    // Generate test amounts with adaptive step size
+    let currentAmount = minAmount;
+    while (currentAmount <= maxAmount) {
+      testAmounts.push(currentAmount.toFixed(3));
+      // Increase step size as amount grows
+      if (currentAmount < 0.01) {
+        currentAmount += 0.001;
+      } else if (currentAmount < 0.05) {
+        currentAmount += 0.005;
+      } else {
+        currentAmount += 0.01;
+      }
+    }
+    
+    console.log(`Smart mode: Testing ${testAmounts.length} amounts from ${minAmount} to ${maxAmount.toFixed(3)} ETH`);
+    
+    let bestResult = { amount: '0', profit: '0', opportunity: null as ArbitrageOpportunity | null };
+    
+    // Test each amount
+    for (const testAmount of testAmounts) {
+      const opportunity = await checkSingleAmount(testAmount);
+      if (opportunity && opportunity.estimatedProfit) {
+        const profit = parseFloat(opportunity.estimatedProfit);
+        if (profit > parseFloat(bestResult.profit)) {
+          bestResult = { amount: testAmount, profit: opportunity.estimatedProfit, opportunity };
+          console.log(`Better opportunity found: ${testAmount} ETH => ${profit.toFixed(6)} ETH profit`);
+        }
+      }
+    }
+    
+    return bestResult;
+  };
+
+  // Check opportunity for a specific amount
+  const checkSingleAmount = async (amount: string): Promise<ArbitrageOpportunity | null> => {
+    try {
+      let bestOpportunity: ArbitrageOpportunity | null = null;
+      
+      // Check both directions if set to 'both'
+      if (checkingDirection === 'kyber-to-larry' || checkingDirection === 'both') {
+        // Kyber -> Larry
+        let kyberRoute = await getKyberSwapRoute(ETH_ADDRESS, LARRY_ADDRESS, amount);
+        if (!kyberRoute || !kyberRoute.routeSummary) {
+          kyberRoute = await getKyberSwapRoute(WETH_ADDRESS, LARRY_ADDRESS, amount);
+        }
+        
+        if (kyberRoute && kyberRoute.routeSummary) {
+          const larryAmountFromKyber = ethers.formatUnits(kyberRoute.routeSummary.amountOut, 18);
+          try {
+            const larryAmountWei = ethers.parseUnits(larryAmountFromKyber, 18);
+            const larryContract = new ethers.Contract(LARRY_ADDRESS, ['function LARRYtoETH(uint256 value) view returns (uint256)'], signer);
+            const ethReturnFromLarry = await larryContract.LARRYtoETH(larryAmountWei);
+            const ethReturnFormatted = ethers.formatEther(ethReturnFromLarry);
+            
+            const requiredReturn = parseFloat(amount) + parseFloat(gasReimbursementAmount);
+            const estimatedProfit = parseFloat(ethReturnFormatted) - requiredReturn;
+            
+            bestOpportunity = {
+              direction: true,
+              directionName: 'ETH → LARRY (Kyber) → ETH (Larry)',
+              route: kyberRoute.routeSummary,
+              expectedReturn: larryAmountFromKyber,
+              principalAmount: amount,
+              estimatedProfit: estimatedProfit.toFixed(6),
+              actualEthReturn: ethReturnFormatted
+            };
+          } catch (error) {
+            // Skip this amount if there's an error
+          }
+        }
+      }
+      
+      if (checkingDirection === 'larry-to-kyber' || checkingDirection === 'both') {
+        // Larry -> Kyber
+        try {
+          const ethAmountWei = ethers.parseEther(amount);
+          const larryContract = new ethers.Contract(LARRY_ADDRESS, ['function getBuyLARRY(uint256 amount) view returns (uint256)'], signer);
+          const larryAmountFromDex = await larryContract.getBuyLARRY(ethAmountWei);
+          const larryAmountFormatted = ethers.formatUnits(larryAmountFromDex, 18);
+          
+          let kyberRoute = await getKyberSwapRoute(LARRY_ADDRESS, ETH_ADDRESS, larryAmountFormatted);
+          if (!kyberRoute || !kyberRoute.routeSummary) {
+            kyberRoute = await getKyberSwapRoute(LARRY_ADDRESS, WETH_ADDRESS, larryAmountFormatted);
+          }
+          
+          if (kyberRoute && kyberRoute.routeSummary) {
+            const ethReturnFromKyber = ethers.formatUnits(kyberRoute.routeSummary.amountOut, 18);
+            const requiredReturn = parseFloat(amount) + parseFloat(gasReimbursementAmount);
+            const estimatedProfit = parseFloat(ethReturnFromKyber) - requiredReturn;
+            
+            if (!bestOpportunity || estimatedProfit > parseFloat(bestOpportunity.estimatedProfit || '0')) {
+              bestOpportunity = {
+                direction: false,
+                directionName: 'ETH → LARRY (Larry) → ETH (Kyber)',
+                route: kyberRoute.routeSummary,
+                expectedReturn: ethReturnFromKyber,
+                principalAmount: amount,
+                estimatedProfit: estimatedProfit.toFixed(6)
+              };
+            }
+          }
+        } catch (error) {
+          // Skip this amount if there's an error
+        }
+      }
+      
+      return bestOpportunity;
+    } catch (error) {
+      return null;
+    }
+  };
+
   // Check for arbitrage opportunities
   const checkOpportunity = useCallback(async () => {
     if (!signer || !connected) return;
@@ -166,106 +295,34 @@ export default function ArbitrageBot() {
     try {
       let bestOpportunity: ArbitrageOpportunity | null = null;
       
-      // Check Kyber -> Larry direction (Buy LARRY on Kyber, sell on Larry DEX)
-      if (checkingDirection === 'kyber-to-larry' || checkingDirection === 'both') {
-        // Try with ETH address first, then WETH if that fails
-        let kyberRoute = await getKyberSwapRoute(ETH_ADDRESS, LARRY_ADDRESS, tradeAmount);
-        
-        // If no route found with ETH address, try WETH
-        if (!kyberRoute || !kyberRoute.routeSummary) {
-          console.log('No route found with ETH address, trying WETH...');
-          kyberRoute = await getKyberSwapRoute(WETH_ADDRESS, LARRY_ADDRESS, tradeAmount);
-        }
-        
-        if (kyberRoute && kyberRoute.routeSummary) {
-          const larryAmountFromKyber = ethers.formatUnits(kyberRoute.routeSummary.amountOut, 18);
+      // If smart mode is enabled and bot is running, find optimal amount
+      if (smartMode && isBotRunning) {
+        const optimal = await findOptimalAmount();
+        if (optimal.opportunity) {
+          bestOpportunity = optimal.opportunity;
+          setOptimalAmount(optimal.amount);
+          console.log(`Optimal trade amount: ${optimal.amount} ETH with profit ${optimal.profit} ETH`);
           
-          // Now check how much ETH we'd get selling this LARRY on Larry DEX
-          // We need to call the contract to get the actual return amount
-          try {
-            const larryAmountWei = ethers.parseUnits(larryAmountFromKyber, 18);
+          // Show alert for user to confirm
+          if (parseFloat(optimal.profit) > 0) {
+            const confirmTrade = window.confirm(
+              `Smart Arbitrage Found!\n\n` +
+              `Optimal Amount: ${optimal.amount} ETH\n` +
+              `Expected Profit: ${optimal.profit} ETH\n` +
+              `Direction: ${optimal.opportunity.directionName}\n\n` +
+              `Execute this trade?`
+            );
             
-            // Get quote from Larry DEX for selling LARRY
-            const larryContract = new ethers.Contract(LARRY_ADDRESS, ['function LARRYtoETH(uint256 value) view returns (uint256)'], signer);
-            const ethReturnFromLarry = await larryContract.LARRYtoETH(larryAmountWei);
-            const ethReturnFormatted = ethers.formatEther(ethReturnFromLarry);
-            
-            const requiredReturn = parseFloat(tradeAmount) + parseFloat(gasReimbursementAmount);
-            const estimatedProfit = parseFloat(ethReturnFormatted) - requiredReturn;
-            
-            console.log('Kyber->Larry Direction:', {
-              inputETH: tradeAmount,
-              larryFromKyber: larryAmountFromKyber,
-              ethFromLarryDex: ethReturnFormatted,
-              profit: estimatedProfit
-            });
-            
-            // Store the opportunity even if not profitable, so we can show it
-            bestOpportunity = {
-              direction: true,
-              directionName: 'ETH → LARRY (Kyber) → ETH (Larry)',
-              route: kyberRoute.routeSummary,
-              expectedReturn: larryAmountFromKyber,
-              principalAmount: tradeAmount,
-              estimatedProfit: estimatedProfit.toFixed(6),
-              actualEthReturn: ethReturnFormatted
-            };
-          } catch (error) {
-            console.error('Error getting Larry DEX quote:', error);
-          }
-        }
-      }
-      
-      // Check Larry -> Kyber direction (Buy LARRY on Larry DEX, sell on Kyber)
-      if (checkingDirection === 'larry-to-kyber' || checkingDirection === 'both') {
-        try {
-          const ethAmountWei = ethers.parseEther(tradeAmount);
-          
-          // Get quote from Larry DEX for buying LARRY with ETH
-          const larryContract = new ethers.Contract(LARRY_ADDRESS, ['function getBuyLARRY(uint256 amount) view returns (uint256)'], signer);
-          
-          // Use getBuyLARRY which calculates: (amount * totalSupply * buy_fee) / backing / FEE_BASE_10000
-          const larryAmountFromDex = await larryContract.getBuyLARRY(ethAmountWei);
-          
-          // Larry DEX gives exactly what it shows, no slippage needed
-          const larryAmountFormatted = ethers.formatUnits(larryAmountFromDex, 18);
-          
-          // Now check Kyber price for selling this adjusted LARRY amount
-          let kyberRoute = await getKyberSwapRoute(LARRY_ADDRESS, ETH_ADDRESS, larryAmountFormatted);
-          
-          // If no route found with ETH address, try WETH
-          if (!kyberRoute || !kyberRoute.routeSummary) {
-            console.log('No route found with ETH address for selling, trying WETH...');
-            kyberRoute = await getKyberSwapRoute(LARRY_ADDRESS, WETH_ADDRESS, larryAmountFormatted);
-          }
-          
-          if (kyberRoute && kyberRoute.routeSummary) {
-            const ethReturnFromKyber = ethers.formatUnits(kyberRoute.routeSummary.amountOut, 18);
-            const requiredReturn = parseFloat(tradeAmount) + parseFloat(gasReimbursementAmount);
-            const estimatedProfit = parseFloat(ethReturnFromKyber) - requiredReturn;
-            
-            console.log('Larry->Kyber Direction:', {
-              inputETH: tradeAmount,
-              larryFromDex: larryAmountFormatted,
-              ethFromKyber: ethReturnFromKyber,
-              profit: estimatedProfit
-            });
-            
-            // Store the opportunity if it's better than what we have (or if we have none)
-            if (!bestOpportunity || estimatedProfit > parseFloat(bestOpportunity.estimatedProfit || '0')) {
-              bestOpportunity = {
-                direction: false,
-                directionName: 'ETH → LARRY (Larry) → ETH (Kyber)',
-                route: kyberRoute.routeSummary,
-                expectedReturn: ethReturnFromKyber,
-                principalAmount: tradeAmount,
-                estimatedProfit: estimatedProfit.toFixed(6)
-              };
+            if (confirmTrade) {
+              setOpportunity(bestOpportunity);
+              setLastCheck(new Date());
+              return;
             }
           }
-        } catch (error) {
-          console.error('Error getting Larry DEX quote:', error);
         }
+      } else {
+        // Regular mode - check with fixed trade amount
+        bestOpportunity = await checkSingleAmount(tradeAmount);
       }
       
       setOpportunity(bestOpportunity);
@@ -382,15 +439,30 @@ export default function ArbitrageBot() {
     }
   };
 
-  // Auto-check when bot is running
+  // Auto-check every 30 seconds (whether bot is running or not)
   useEffect(() => {
-    if (!isBotRunning) return;
+    if (!connected) return;
     
+    // Initial check
     checkOpportunity();
-    const interval = setInterval(checkOpportunity, 30000); // Check every 30 seconds
+    setNextCheckIn(30);
     
-    return () => clearInterval(interval);
-  }, [isBotRunning, checkOpportunity]);
+    // Set up interval for periodic checks
+    const interval = setInterval(() => {
+      checkOpportunity();
+      setNextCheckIn(30);
+    }, 30000); // Check every 30 seconds
+    
+    // Countdown timer
+    const countdownInterval = setInterval(() => {
+      setNextCheckIn(prev => prev > 0 ? prev - 1 : 30);
+    }, 1000);
+    
+    return () => {
+      clearInterval(interval);
+      clearInterval(countdownInterval);
+    };
+  }, [connected, checkOpportunity]);
 
   // Auto-execute when profitable opportunity is found and bot is running
   useEffect(() => {
@@ -522,8 +594,37 @@ export default function ArbitrageBot() {
         
         <div className="space-y-4">
           <div>
+            <label className="block text-gray-400 text-sm mb-2 flex items-center justify-between">
+              <span>Smart Mode</span>
+              <button
+                onClick={() => setSmartMode(!smartMode)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  smartMode ? 'bg-purple-500' : 'bg-gray-600'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    smartMode ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </label>
+            <p className="text-sm text-gray-400">
+              {smartMode 
+                ? `Smart mode will find optimal trade amount (up to ${Math.min(parseFloat(userBalance) * 0.9, 0.1).toFixed(3)} ETH)`
+                : 'Manual mode uses fixed trade amount'
+              }
+            </p>
+            {optimalAmount && smartMode && (
+              <p className="text-sm text-green-400 mt-1">
+                Last optimal amount: {optimalAmount} ETH
+              </p>
+            )}
+          </div>
+          
+          <div>
             <label className="block text-gray-400 text-sm mb-2">
-              Trade Amount (ETH)
+              Trade Amount (ETH) {smartMode && '(for manual trades)'}
             </label>
             <input
               type="number"
@@ -565,14 +666,22 @@ export default function ArbitrageBot() {
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-bold text-white">Current Route</h3>
-          <button
-            onClick={checkOpportunity}
-            disabled={isChecking || !connected || isBotRunning}
-            className="px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            <RefreshCw className={`w-4 h-4 ${isChecking ? 'animate-spin' : ''}`} />
-            Check Now
-          </button>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-gray-400">
+              Next check in: <span className="text-purple-400 font-semibold">{nextCheckIn}s</span>
+            </span>
+            <button
+              onClick={() => {
+                checkOpportunity();
+                setNextCheckIn(30);
+              }}
+              disabled={isChecking || !connected}
+              className="px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              <RefreshCw className={`w-4 h-4 ${isChecking ? 'animate-spin' : ''}`} />
+              Check Now
+            </button>
+          </div>
         </div>
 
         {opportunity ? (
