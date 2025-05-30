@@ -253,7 +253,18 @@ export default function ArbitrageBot() {
           const ethAmountWei = ethers.parseEther(amount);
           const larryContract = new ethers.Contract(LARRY_ADDRESS, ['function getBuyLARRY(uint256 amount) view returns (uint256)'], signer);
           const larryAmountFromDex = await larryContract.getBuyLARRY(ethAmountWei);
-          const larryAmountFormatted = ethers.formatUnits(larryAmountFromDex, 18);
+          
+          // Apply 0.01% slippage tolerance to account for potential differences
+          // between getBuyLARRY calculation and actual received amount
+          const slippageTolerance = 0.9999; // 99.99% of expected amount
+          const adjustedLarryAmount = larryAmountFromDex * BigInt(Math.floor(slippageTolerance * 10000)) / BigInt(10000);
+          const larryAmountFormatted = ethers.formatUnits(adjustedLarryAmount, 18);
+          
+          console.log('Larry DEX calculation:', {
+            expectedLarry: ethers.formatUnits(larryAmountFromDex, 18),
+            adjustedLarry: larryAmountFormatted,
+            slippage: '0.01%'
+          });
           
           let kyberRoute = await getKyberSwapRoute(LARRY_ADDRESS, ETH_ADDRESS, larryAmountFormatted);
           if (!kyberRoute || !kyberRoute.routeSummary) {
@@ -704,6 +715,9 @@ export default function ArbitrageBot() {
                     : `${parseFloat(ethers.formatUnits(opportunity.route.amountIn, 18)).toFixed(2)}`
                   }
                 </p>
+                {!opportunity.direction && (
+                  <p className="text-xs text-gray-400 mt-1">*With 0.01% slippage tolerance</p>
+                )}
               </div>
               <div className="bg-purple-500/10 rounded-lg p-4">
                 <p className="text-gray-400 text-sm mb-1">Final ETH Return</p>
